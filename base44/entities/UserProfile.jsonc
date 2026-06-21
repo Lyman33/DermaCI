@@ -1,0 +1,55 @@
+{
+  "name": "UserProfile",
+  "type": "object",
+  "properties": {
+    "email": {
+      "type": "string"
+    },
+    "has_global_access": {
+      "type": "boolean",
+      "default": false
+    },
+    "paid_at": {
+      "type": "string"
+    },
+    "payment_ref": {
+      "type": "string"
+    },
+    "transaction_id": {
+      "type": "string"
+    },
+    "payment_method": {
+      "type": "string"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "amount": {
+      "type": "number"
+    },
+    "total_analyses": {
+      "type": "number"
+    }
+  },
+  "required": [],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "user"
+      }
+    },
+    "read": {
+      "data.email": "{{user.email}}"
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

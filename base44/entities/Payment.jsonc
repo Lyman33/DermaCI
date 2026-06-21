@@ -1,0 +1,47 @@
+{
+  "name": "Payment",
+  "type": "object",
+  "properties": {
+    "email": {
+      "type": "string"
+    },
+    "reference": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "confirmed",
+        "failed",
+        "cancelled",
+        "expired"
+      ],
+      "default": "pending"
+    },
+    "transaction_id": {
+      "type": "string"
+    },
+    "payment_method": {
+      "type": "string"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "amount": {
+      "type": "number"
+    },
+    "paid_at": {
+      "type": "string"
+    }
+  },
+  "required": [],
+  "rls": {
+    "authenticated": {
+      "create": true,
+      "read": true,
+      "update": true,
+      "delete": true
+    }
+  }
+}

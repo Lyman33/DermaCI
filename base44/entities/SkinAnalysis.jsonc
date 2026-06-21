@@ -1,0 +1,107 @@
+{
+  "name": "SkinAnalysis",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Email of the user who created this analysis (no conflict with system created_by)"
+    },
+    "photo_url": {
+      "type": "string",
+      "description": "URL of the uploaded photo"
+    },
+    "age": {
+      "type": "number"
+    },
+    "genre": {
+      "type": "string",
+      "enum": [
+        "homme",
+        "femme"
+      ]
+    },
+    "temps_soins": {
+      "type": "string",
+      "enum": [
+        "peu",
+        "mod\u00e9r\u00e9",
+        "modere",
+        "beaucoup"
+      ]
+    },
+    "score": {
+      "type": "number",
+      "default": 0
+    },
+    "skin_type": {
+      "type": "string"
+    },
+    "skin_type_description": {
+      "type": "string"
+    },
+    "score_breakdown": {
+      "type": "object"
+    },
+    "problems": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "causes": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "routine_matin": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "routine_soir": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "actifs": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "aliments": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "habitudes": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "tracking": {
+      "type": "object"
+    },
+    "analysis_complete": {
+      "type": "boolean",
+      "default": false
+    },
+    "payment_pending": {
+      "type": "boolean",
+      "default": true,
+      "description": "True si l'analyse est en attente de paiement, False si le paiement est confirm\u00e9"
+    }
+  },
+  "required": [],
+  "rls": {
+    "create": true,
+    "read": true,
+    "update": true,
+    "delete": true
+  }
+}

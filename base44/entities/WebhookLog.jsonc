@@ -1,0 +1,25 @@
+{
+  "name": "WebhookLog",
+  "type": "object",
+  "properties": {
+    "delivery_id": {
+      "type": "string"
+    },
+    "event": {
+      "type": "string"
+    },
+    "processed": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [],
+  "rls": {
+    "authenticated": {
+      "create": true,
+      "read": true,
+      "update": true,
+      "delete": true
+    }
+  }
+}

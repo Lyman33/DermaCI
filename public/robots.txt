@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /analyses
+Disallow: /results/
+Disallow: /loading/
+Disallow: /payment-success
+Disallow: /magic-link
+Disallow: /access-denied
+
+Sitemap: https://dermaci.app/sitemap.xml
