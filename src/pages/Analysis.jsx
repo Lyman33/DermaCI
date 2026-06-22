@@ -405,10 +405,10 @@ export default function Analysis() {
         if (data && data.analysis_complete === true && score > 0 && hasProblems) {
           doneRef.current = true;
           localStorage.removeItem('dermaci_analysis_in_progress');
-          setProgress(99);
+          setProgress(100);
           setCurrentStepText("Vos résultats sont prêts !");
           sendNotification('🌿 DermaCI — Vos résultats sont prêts !', 'Touchez pour découvrir votre analyse dermatologique personnalisée.', 'dermaci-ready', analysisId, navigate, true);
-          await new Promise(r => setTimeout(r, 600));
+          await new Promise(r => setTimeout(r, 500));
           navigate(`/results/${analysisId}`);
           return;
         }
@@ -463,15 +463,29 @@ export default function Analysis() {
       setCurrentStepText("Photo reçue ✓ Analyse de votre peau...");
       sendNotification('🌿 DermaCI', 'Photo reçue ✓ Analyse de votre peau en cours...', 'dermaci-photo', null, null, false);
 
-      // Animation de la barre 33 -> 66 pendant le travail de l'IA
+      // Barre continue : avance doucement de 33% vers ~95% sur ~2 min,
+      // en ralentissant pres de la fin (ease-out). Saute a 100% quand Claude repond.
       const startTs = Date.now();
+      const EST_MS = 120000; // duree estimee d'une analyse (~2 min)
+      const STEP_TEXTS = [
+        { at: 0,   text: "Photo reçue ✓ Analyse de votre peau..." },
+        { at: 0.25,text: "Lecture de votre teint et de votre texture..." },
+        { at: 0.45,text: "Détection des problèmes cutanés..." },
+        { at: 0.65,text: "Élaboration de votre routine sur-mesure..." },
+        { at: 0.82,text: "Sélection de vos actifs et nutrition ivoirienne..." },
+        { at: 0.93,text: "Finalisation de votre bilan..." },
+      ];
       const barTimer = setInterval(() => {
         if (doneRef.current) return;
-        if (Date.now() - startTs > 20000) {
-          setProgress((p) => (p < 66 ? 66 : p));
-          setCurrentStepText("Analyse approfondie de votre peau...");
-        }
-      }, 3000);
+        const elapsed = Date.now() - startTs;
+        const t = Math.min(1, elapsed / EST_MS);          // 0 -> 1
+        const eased = 1 - Math.pow(1 - t, 3);             // ease-out cubique
+        const target = 33 + eased * 62;                   // 33% -> 95%
+        setProgress((p) => (target > p ? Math.min(95, target) : p));
+        let label = STEP_TEXTS[0].text;
+        for (const st of STEP_TEXTS) { if (t >= st.at) label = st.text; }
+        setCurrentStepText(label);
+      }, 400);
 
       // IMPORTANT : on ATTEND la fonction (sinon Supabase coupe l'analyse en cours).
       let analyzeErr = null;
