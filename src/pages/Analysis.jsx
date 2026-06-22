@@ -392,19 +392,10 @@ export default function Analysis() {
 
   // Suit l'analyse en base : paliers 33 -> 66 -> 99 puis bascule resultats
   const resumePolling = async (analysisId) => {
-    doneRef.current = false;
-    const MAX = 600000;
+    const MAX = 60000;
     const start = Date.now();
-    let shown66 = false;
 
     while (Date.now() - start < MAX && !doneRef.current) {
-      const elapsed = Date.now() - start;
-      if (elapsed > 22000 && !shown66) {
-        shown66 = true;
-        setProgress(66);
-        setCurrentStepText("Analyse approfondie de votre peau...");
-      }
-
       try {
         const res = await base44.functions.invoke('getAnalysis', { analysis_id: analysisId });
         const data = res?.data?.data || res?.data || null;
@@ -472,14 +463,34 @@ export default function Analysis() {
       setCurrentStepText("Photo reçue ✓ Analyse de votre peau...");
       sendNotification('🌿 DermaCI', 'Photo reçue ✓ Analyse de votre peau en cours...', 'dermaci-photo', null, null, false);
 
-      // Lancer l'analyse (la fonction travaille ~1-2 min puis enregistre tout).
-      // On ne bloque pas dessus : on suit via le polling (résiste aux coupures).
-      base44.functions.invoke('analyzeSkinnComplete', {
-        analysis_id: analysisId,
-        photo_url: photoUrl, age: formData.age, genre: formData.genre,
-        temps_soins: formData.temps_soins, created_by: userEmail, user_email: userEmail,
-      }).catch((e) => { console.warn('[analyze] invoke (suivi par polling):', e?.message); });
+      // Animation de la barre 33 -> 66 pendant le travail de l'IA
+      const startTs = Date.now();
+      const barTimer = setInterval(() => {
+        if (doneRef.current) return;
+        if (Date.now() - startTs > 20000) {
+          setProgress((p) => (p < 66 ? 66 : p));
+          setCurrentStepText("Analyse approfondie de votre peau...");
+        }
+      }, 3000);
 
+      // IMPORTANT : on ATTEND la fonction (sinon Supabase coupe l'analyse en cours).
+      let analyzeErr = null;
+      try {
+        const resp = await base44.functions.invoke('analyzeSkinnComplete', {
+          analysis_id: analysisId,
+          photo_url: photoUrl, age: formData.age, genre: formData.genre,
+          temps_soins: formData.temps_soins, created_by: userEmail, user_email: userEmail,
+        });
+        const rd = resp?.data || resp || {};
+        if (rd?.success === false || rd?.error) analyzeErr = rd?.message || rd?.error;
+      } catch (e) {
+        // Coupure reseau possible : la fonction a peut-etre fini cote serveur.
+        analyzeErr = e?.message || 'network';
+        console.warn('[analyze] invoke error (on verifie via polling):', analyzeErr);
+      }
+      clearInterval(barTimer);
+
+      // Verifier en base que tout est pret (et basculer). Resiste aux coupures.
       await resumePolling(analysisId);
 
     } catch (err) {
