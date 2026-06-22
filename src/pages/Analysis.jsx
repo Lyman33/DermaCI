@@ -10,17 +10,6 @@ import { ScanFace, FlaskConical, Droplets, BookOpen, Leaf, Sparkles, AlertCircle
 const LOGO_URL = "https://media.base44.com/images/public/6a0e53b978ea3d5f75666bd8/fd6f17ab5_LE_LOGO_OFFICIEL.png";
 const NOTIF_ICON = "https://media.base44.com/images/public/6a0e53b978ea3d5f75666bd8/fd6f17ab5_LE_LOGO_OFFICIEL.png";
 
-// Étapes réelles de l'analyse avec leur progression correspondante
-const ANALYSIS_STEPS = [
-  { id: 'start',     progress: 5,  icon: ScanFace,     text: "Initialisation de l'analyse...",        done: false },
-  { id: 'submitted', progress: 15, icon: ScanFace,     text: "Photo envoyée, analyse en cours...",    done: false },
-  { id: 'score',     progress: 45, icon: FlaskConical, text: "Score calculé ✓ Détection des problèmes...", done: false },
-  { id: 'problems',  progress: 60, icon: Droplets,     text: "Problèmes détectés ✓ Génération de la routine...", done: false },
-  { id: 'repair',    progress: 72, icon: BookOpen,     text: "Routine prête ✓ Préparation des actifs...", done: false },
-  { id: 'actifs',    progress: 85, icon: Leaf,         text: "Actifs prêts ✓ Nutrition ivoirienne...", done: false },
-  { id: 'complete',  progress: 100, icon: Sparkles,    text: "Analyse complète ! Chargement...",      done: false },
-];
-
 const SAVIEZ_VOUS = [
   "La déshydratation peut toucher même une peau grasse. Le sébum n'est pas de l'eau.",
   "L'indice UV en Côte d'Ivoire atteint 8 à 12 toute l'année, même par temps nuageux.",
@@ -108,8 +97,6 @@ const WAITING_MESSAGES = [
   "Évaluation du teint et de l'uniformité...",
 ];
 
-// Messages narratifs DermaBot — combinaison idée 1 + idée 3
-// Générés dynamiquement selon age et genre dans LoaderScreen
 function getDermaBotNarrative(age, genre) {
   const ageNum = parseInt(age) || 25;
   const isFemme = (genre || '').toLowerCase() === 'femme';
@@ -233,7 +220,7 @@ function LoaderScreen({ progress, currentStepText, age, genre }) {
   }, []);
 
   const waitingMsg = WAITING_MESSAGES[waitingTick % WAITING_MESSAGES.length];
-  const showWaiting = progress >= 15 && progress < 62;
+  const showWaiting = progress >= 33 && progress < 99;
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -320,7 +307,7 @@ function LoaderScreen({ progress, currentStepText, age, genre }) {
         {Math.round(progress)}%
       </motion.p>
 
-      {/* Étape actuelle — synchronisée avec le backend */}
+      {/* Étape actuelle */}
       <AnimatePresence mode="wait">
         <motion.p key={currentStepText}
           initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
@@ -348,7 +335,7 @@ function LoaderScreen({ progress, currentStepText, age, genre }) {
       )}
 
       <p className="text-xs text-foreground/60 text-center font-semibold">
-        ⚠️ Ne quittez pas cette page — votre analyse nécessite jusqu'à 5 min pour être précise.
+        ⚠️ Ne quittez pas cette page — votre analyse nécessite jusqu'à 3 min pour être précise.
       </p>
     </div>
   );
@@ -370,16 +357,9 @@ function SunLineIcon() {
 
 function sendNotification(title, body, tag, analysisId, navigate, requireInteraction = false) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
-  // Ne notifier que si la page est en arrière-plan
   if (document.visibilityState === 'visible') return;
   try {
-    const notif = new Notification(title, {
-      body,
-      icon: NOTIF_ICON,
-      badge: NOTIF_ICON,
-      tag,
-      requireInteraction,
-    });
+    const notif = new Notification(title, { body, icon: NOTIF_ICON, badge: NOTIF_ICON, tag, requireInteraction });
     if (analysisId && navigate) {
       notif.onclick = () => { window.focus(); navigate(`/results/${analysisId}`); notif.close(); };
     }
@@ -398,7 +378,6 @@ export default function Analysis() {
   const [error, setError]                 = useState(null);
   const [formData, setFormData]           = useState(null);
   const doneRef                           = useRef(false);
-  const intervalRef                       = useRef(null);
 
   useEffect(() => {
     document.title = 'DermaCI — Analyse dermatologique IA';
@@ -406,86 +385,44 @@ export default function Analysis() {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
-    // Nettoyer tout flag d'analyse en cours au chargement
-    // Si l'utilisateur revient sur cette page, c'est qu'il a annulé
-    const inProgress = localStorage.getItem('dermaci_analysis_in_progress');
-    if (inProgress) {
-      // Supprimer l'analyse en cours
-      const lastId = localStorage.getItem('dermaci_last_analysis_id');
-      if (lastId) {
-        base44.functions.invoke('getAnalysis', { analysis_id: lastId })
-          .then(res => {
-            const data = res?.data?.data || res?.data || null;
-            if (data && data.analysis_complete === false) {
-              // Analyse pas encore complète — la supprimer
-              base44.asServiceRole?.entities?.SkinAnalysis?.delete(lastId).catch(() => {});
-            }
-          }).catch(() => {});
-      }
-      localStorage.removeItem('dermaci_analysis_in_progress');
-      localStorage.removeItem('dermaci_last_analysis_id');
-    }
+    // Si on revient sur cette page, on repart a zero (analyse precedente abandonnee)
+    localStorage.removeItem('dermaci_analysis_in_progress');
+    localStorage.removeItem('dermaci_last_analysis_id');
   }, []);
 
-  const setStep3 = (stepId) => {
-    const found = ANALYSIS_STEPS.find(s => s.id === stepId);
-    if (found) {
-      setProgress(found.progress);
-      setCurrentStepText(found.text);
-    }
-  };
-
+  // Suit l'analyse en base : paliers 33 -> 66 -> 99 puis bascule resultats
   const resumePolling = async (analysisId) => {
     doneRef.current = false;
     const MAX = 600000;
     const start = Date.now();
-    let repairCalled = false;
+    let shown66 = false;
 
     while (Date.now() - start < MAX && !doneRef.current) {
+      const elapsed = Date.now() - start;
+      if (elapsed > 22000 && !shown66) {
+        shown66 = true;
+        setProgress(66);
+        setCurrentStepText("Analyse approfondie de votre peau...");
+      }
+
       try {
         const res = await base44.functions.invoke('getAnalysis', { analysis_id: analysisId });
         const data = res?.data?.data || res?.data || null;
-        if (!data) { await new Promise(r => setTimeout(r, 1500)); continue; }
-
         const score = Number(data?.score || 0);
         const hasProblems = Array.isArray(data?.problems) && data.problems.length > 0;
-        const hasActifs = Array.isArray(data?.actifs) && data.actifs.length > 0;
-        const hasAliments = Array.isArray(data?.aliments) && data.aliments.length > 0;
-        const hasHabitudes = Array.isArray(data?.habitudes) && data.habitudes.length > 0;
-        const hasTracking = data?.tracking && Object.keys(data.tracking).length > 0;
 
-        if (score > 0 && !repairCalled) {
-          setProgress(45);
-          setCurrentStepText("Analyse de votre peau...");
-        }
-        if (hasProblems && !repairCalled) {
-          setProgress(62);
-          setCurrentStepText("Problèmes détectés ✓ Génération de votre routine...");
-          sendNotification('🌿 DermaCI', 'Problèmes détectés ✓ Génération de votre routine...', 'dermaci-problems', null, null, false);
-          repairCalled = true;
-          base44.functions.invoke('repairAnalysisC', { analysis_id: analysisId }).catch(() => {});
-        }
-        if (hasActifs) {
-          setProgress(80);
-          setCurrentStepText("Génération de votre routine...");
-        }
-        if (hasAliments) {
-          setProgress(91);
-          setCurrentStepText("Finalisation de votre analyse...");
-        }
-
-        if (data?.analysis_complete === true && score > 0 && hasProblems && hasActifs && hasAliments && hasHabitudes && hasTracking) {
+        if (data && data.analysis_complete === true && score > 0 && hasProblems) {
           doneRef.current = true;
           localStorage.removeItem('dermaci_analysis_in_progress');
-          setProgress(100);
+          setProgress(99);
           setCurrentStepText("Vos résultats sont prêts !");
           sendNotification('🌿 DermaCI — Vos résultats sont prêts !', 'Touchez pour découvrir votre analyse dermatologique personnalisée.', 'dermaci-ready', analysisId, navigate, true);
-          await new Promise(r => setTimeout(r, 500));
+          await new Promise(r => setTimeout(r, 600));
           navigate(`/results/${analysisId}`);
           return;
         }
       } catch {}
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 2500));
     }
 
     // Timeout
@@ -516,27 +453,12 @@ export default function Analysis() {
         const isAuthed = await base44.auth.isAuthenticated();
         if (isAuthed) currentUser = await base44.auth.me();
       } catch {}
-
-      // Étape 1 : Envoi au backend
-      setProgress(5); setCurrentStepText("Envoi de votre photo...");
-
       const userEmail = currentUser?.email || '';
-      const response = await base44.functions.invoke('analyzeSkinnComplete', {
-        photo_url: photoUrl, age: formData.age, genre: formData.genre,
-        temps_soins: formData.temps_soins, created_by: userEmail, user_email: userEmail,
-      });
 
-      const responseData = response?.data || response || {};
-      if (responseData?.success === false || responseData?.error) {
-        throw new Error(responseData?.message || responseData?.error || "L'analyse a échoué.");
-      }
+      // ID généré côté client : résiste aux coupures réseau
+      const analysisId = (window.crypto?.randomUUID && window.crypto.randomUUID())
+        || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-      const analysisId = responseData?.analysis_id;
-      if (!analysisId || typeof analysisId !== 'string') {
-        throw new Error("L'analyse n'a pas pu être créée. Réessayez 🙏");
-      }
-
-      // Sauvegarder
       try {
         const stored = JSON.parse(localStorage.getItem('dermaci_analyses') || '[]');
         if (!stored.includes(analysisId)) stored.unshift(analysisId);
@@ -545,21 +467,27 @@ export default function Analysis() {
         localStorage.setItem('dermaci_analysis_in_progress', '1');
       } catch {}
 
-      // Photo reçue — notifier
-      setProgress(15);
+      // Palier 33 %
+      setProgress(33);
       setCurrentStepText("Photo reçue ✓ Analyse de votre peau...");
       sendNotification('🌿 DermaCI', 'Photo reçue ✓ Analyse de votre peau en cours...', 'dermaci-photo', null, null, false);
+
+      // Lancer l'analyse (la fonction travaille ~1-2 min puis enregistre tout).
+      // On ne bloque pas dessus : on suit via le polling (résiste aux coupures).
+      base44.functions.invoke('analyzeSkinnComplete', {
+        analysis_id: analysisId,
+        photo_url: photoUrl, age: formData.age, genre: formData.genre,
+        temps_soins: formData.temps_soins, created_by: userEmail, user_email: userEmail,
+      }).catch((e) => { console.warn('[analyze] invoke (suivi par polling):', e?.message); });
 
       await resumePolling(analysisId);
 
     } catch (err) {
       doneRef.current = true;
-      if (intervalRef.current) clearInterval(intervalRef.current);
       localStorage.removeItem('dermaci_analysis_in_progress');
       setStep(2);
       let errorMsg = "Une erreur est survenue. Veuillez réessayer.";
       if (err.message?.includes('limit_exceeded')) { errorMsg = err.message; }
-      else if (err.response?.status === 429) { errorMsg = `Limite atteinte. Réessayez dans ${err.response?.data?.hours_remaining || 24}h.`; }
       else if (err.message) { errorMsg = err.message; }
       setError(errorMsg);
     } finally {
