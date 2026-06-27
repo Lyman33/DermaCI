@@ -392,7 +392,7 @@ export default function Analysis() {
 
   // Suit l'analyse en base : paliers 33 -> 66 -> 99 puis bascule resultats
   const resumePolling = async (analysisId) => {
-    const MAX = 60000;
+    const MAX = 240000;
     const start = Date.now();
 
     while (Date.now() - start < MAX && !doneRef.current) {
