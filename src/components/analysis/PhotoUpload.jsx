@@ -106,7 +106,7 @@ async function checkPhotoQuality(file) {
             const lapMean = lapSum / count;
             const lapVar = (lapSqSum / count) - (lapMean * lapMean);
             // Seuil prudent : en dessous = clairement flou (evite les faux positifs)
-            if (lapVar < 60) {
+            if (lapVar < 120) {
               return resolve({ ok: false, reason: 'blurry', message: "Photo floue. Tiens le téléphone bien stable et fais la mise au point sur ton visage." });
             }
 
