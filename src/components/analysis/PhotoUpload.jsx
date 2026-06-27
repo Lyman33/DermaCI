@@ -5,9 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const TIPS = [
   '☀️ Pleine lumière naturelle',
-  '🚿 Visage propre et dégagé',
-  '💄 Sans maquillage',
-  '📐 Face caméra, regard droit',
+  '🚿 Visage propre, sans maquillage',
+  '📱 Photo nette, pas floue',
+  '🤳 Visage de FACE (pas de profil)',
 ];
 
 // ── COMPRESSION IMAGE → base64 ─────────────────────────────────────────────
@@ -44,6 +44,79 @@ async function compressToBase64(file, maxSize = 800, quality = 0.82) {
       img.src = e.target.result;
     };
     reader.readAsDataURL(file);
+  });
+}
+
+
+// ── ANALYSE QUALITE DE LA PHOTO (luminosite, nettete, taille) ──────────────
+// Retourne { ok: true } ou { ok:false, reason:'dark'|'blurry'|'small', message }
+async function checkPhotoQuality(file) {
+  return new Promise((resolve) => {
+    try {
+      const reader = new FileReader();
+      reader.onerror = () => resolve({ ok: true }); // en cas de doute, on laisse passer
+      reader.onload = (e) => {
+        const img = new window.Image();
+        img.onerror = () => resolve({ ok: true });
+        img.onload = () => {
+          try {
+            const W = img.width, H = img.height;
+            // a) Resolution minimale
+            if (W < 300 || H < 300) {
+              return resolve({ ok: false, reason: 'small', message: "Photo trop petite ou de mauvaise qualité. Prends une photo plus nette et plus grande." });
+            }
+            // Echantillonnage sur une version reduite (rapide)
+            const S = 200;
+            const ratio = Math.min(S / W, S / H);
+            const w = Math.max(1, Math.round(W * ratio));
+            const h = Math.max(1, Math.round(H * ratio));
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            const data = ctx.getImageData(0, 0, w, h).data;
+
+            // Luminosite moyenne (0-255) + variance (nettete approx via Laplacien simplifie)
+            let sum = 0;
+            const lum = new Float32Array(w * h);
+            for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+              const l = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+              lum[p] = l; sum += l;
+            }
+            const mean = sum / (w * h);
+
+            // b) Trop sombre
+            if (mean < 55) {
+              return resolve({ ok: false, reason: 'dark', message: "Photo trop sombre. Reprends-la en pleine lumière naturelle (près d'une fenêtre ou dehors)." });
+            }
+            // c) Trop claire / surexposee (rare mais fausse l'analyse)
+            if (mean > 235) {
+              return resolve({ ok: false, reason: 'bright', message: "Photo surexposée (trop de lumière directe). Évite le flash et la lumière en face." });
+            }
+
+            // d) Nettete : variance du Laplacien (faible = flou)
+            let lapSum = 0, lapSqSum = 0, count = 0;
+            for (let y = 1; y < h - 1; y++) {
+              for (let x = 1; x < w - 1; x++) {
+                const idx = y * w + x;
+                const lap = (4 * lum[idx]) - lum[idx - 1] - lum[idx + 1] - lum[idx - w] - lum[idx + w];
+                lapSum += lap; lapSqSum += lap * lap; count++;
+              }
+            }
+            const lapMean = lapSum / count;
+            const lapVar = (lapSqSum / count) - (lapMean * lapMean);
+            // Seuil prudent : en dessous = clairement flou (evite les faux positifs)
+            if (lapVar < 60) {
+              return resolve({ ok: false, reason: 'blurry', message: "Photo floue. Tiens le téléphone bien stable et fais la mise au point sur ton visage." });
+            }
+
+            resolve({ ok: true });
+          } catch { resolve({ ok: true }); }
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    } catch { resolve({ ok: true }); }
   });
 }
 
@@ -98,6 +171,15 @@ export default function PhotoUpload({ photo, photoUrl, onPhotoChange, onContinue
 
     setError(null);
     setUploadProgress(0);
+
+    // ── CONTROLE QUALITE avant tout (sombre / floue / trop petite) ──────────
+    const quality = await checkPhotoQuality(file);
+    if (!quality.ok) {
+      setError(quality.message);
+      onPhotoChange(null, '');
+      return;
+    }
+
     setUploading(true);
 
     // Aperçu immédiat local — pas d'attente
