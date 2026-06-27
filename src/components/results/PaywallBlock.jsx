@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Lock, Zap, ArrowRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { Lock, Zap, ArrowRight, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { base44 } from '@/api/base44Client';
 
@@ -15,14 +15,61 @@ const FEATURES = [
   { icon: '♾️', title: 'Accès à vie', desc: 'Analyses illimitées sur tous vos appareils' },
 ];
 
+// Lien direct de secours (si initPayment est indisponible)
+const FALLBACK_PAYMENT_URL = 'https://geniuspay.ci/product/dermaci-BI38zG';
+
 export default function PaywallBlock({ onUnlock, paymentPending, user }) {
-  const handleUnlock = () => {
-    // Rediriger vers GeniusPay
-    window.location.href = 'https://geniuspay.ci/product/dermaci-xMVqAU';
-    // Marquer que le paiement est en cours
+  const [loading, setLoading] = useState(false);
+
+  const getEmail = () => {
+    // 1) email de l'utilisateur connecte
+    if (user?.email) return user.email.toLowerCase().trim();
+    // 2) email capture localement
+    try {
+      const stored = localStorage.getItem('dermaci_device_email')
+        || localStorage.getItem('dermaci_user_email')
+        || localStorage.getItem('user_email');
+      if (stored) return stored.toLowerCase().trim();
+    } catch {}
+    return '';
+  };
+
+  const handleUnlock = async () => {
+    if (loading) return;
+    setLoading(true);
     localStorage.setItem('dermaci_payment_started', Date.now().toString());
-    // Démarrer le polling
+
+    const email = getEmail();
+
+    // On passe par initPayment : il enregistre le paiement (email + reference)
+    // et renvoie un lien GeniusPay personnalise -> permet de debloquer le bon compte.
+    try {
+      if (email) {
+        const res = await base44.functions.invoke('initPayment', { email });
+        const data = res?.data || res || {};
+        if (data?.already_premium) {
+          // Deja premium : on debloque directement
+          onUnlock?.();
+          setLoading(false);
+          return;
+        }
+        const url = data?.payment_url;
+        if (url && typeof url === 'string') {
+          onUnlock?.();
+          window.location.href = url;
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('[Paywall] initPayment indisponible, lien direct:', e?.message);
+    }
+
+    // Secours : lien direct (avec email en parametre si dispo)
     onUnlock?.();
+    const fallback = email
+      ? `${FALLBACK_PAYMENT_URL}?email=${encodeURIComponent(email)}&redirect_url=${encodeURIComponent('https://dermaci.app/payment-success')}`
+      : `${FALLBACK_PAYMENT_URL}?redirect_url=${encodeURIComponent('https://dermaci.app/payment-success')}`;
+    window.location.href = fallback;
   };
 
   return (
@@ -63,16 +110,17 @@ export default function PaywallBlock({ onUnlock, paymentPending, user }) {
         <div className="px-5 pb-6">
           <button
             onClick={handleUnlock}
-            className="w-full py-4 rounded-2xl font-bold text-base flex flex-col items-center justify-center gap-0.5"
+            disabled={loading}
+            className="w-full py-4 rounded-2xl font-bold text-base flex flex-col items-center justify-center gap-0.5 disabled:opacity-70"
             style={{
               background: 'linear-gradient(135deg, #00A878, #00C896)',
               color: '#fff',
               boxShadow: '0 8px 28px rgba(0,168,120,0.45)',
             }}>
             <div className="flex items-center gap-2">
-              <Zap className="w-5 h-5" />
-              Débloquer mon analyse
-              <ArrowRight className="w-5 h-5" />
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
+              {loading ? 'Préparation du paiement...' : 'Débloquer mon analyse'}
+              {!loading && <ArrowRight className="w-5 h-5" />}
             </div>
             <span style={{ fontSize: '13px', fontWeight: 700, opacity: 0.85 }}>2 000 FCFA · Paiement unique · Accès à vie</span>
           </button>
