@@ -57,13 +57,15 @@ function blendColors(hex1, hex2, ratio) {
 }
 
 function getSkinTypeColor(skinType) {
-  const t = (skinType || '').toLowerCase();
+  const full = (skinType || '').toLowerCase();
+  // La couleur de base vient du TYPE PRINCIPAL (avant "a tendance"), pas de la tendance.
+  // Ex: "Peau grasse a tendance acneique" -> principal = "peau grasse" -> JAUNE (pas rouge).
+  const t = full.split(/\s*[aà]\s+tendance\s*/)[0];
   let base = '#00A878';
   let iconKey = 'default';
 
-  if (t.includes('acné') || t.includes('acne') || t.includes('acneique') || t.includes('acnéique')) {
-    base = '#DC2626'; iconKey = 'acne';
-  } else if (t.includes('grasse')) {
+  // Ordre = du plus specifique au plus general sur le TYPE PRINCIPAL uniquement.
+  if (t.includes('grasse')) {
     base = '#D4A017'; iconKey = 'grasse';
   } else if (t.includes('mixte')) {
     base = '#256D85'; iconKey = 'mixte';
@@ -77,31 +79,34 @@ function getSkinTypeColor(skinType) {
     base = '#60A5FA'; iconKey = 'deshydratee';
   } else if (t.includes('normale')) {
     base = '#059669'; iconKey = 'normale';
+  } else if (t.includes('acné') || t.includes('acne') || t.includes('acneique') || t.includes('acnéique')) {
+    base = '#DC2626'; iconKey = 'acne';
   }
 
+  // La tendance (le reste) ajuste la nuance via blendColors -> on garde 'full' pour ca.
   let color = base;
-  if (t.includes('tendance acné') || t.includes('tendance acne') || t.includes('tendance acneique') || t.includes('tendance acnéique'))
-    color = blendColors(base, '#DC2626', 0.25);
-  else if (t.includes('tendance grasse') || t.includes('predominance grasse') || t.includes('prédominance grasse'))
-    color = blendColors(base, '#D4A017', 0.25);
-  else if (t.includes('tendance seche') || t.includes('tendance sèche') || t.includes('predominance seche') || t.includes('prédominance sèche'))
-    color = blendColors(base, '#C68642', 0.25);
-  else if (t.includes('tendance pigment') || t.includes('tendance terne'))
-    color = blendColors(base, '#92400E', 0.25);
-  else if (t.includes('tendance sensible') || t.includes('tendance reactive') || t.includes('tendance réactive'))
-    color = blendColors(base, '#D977A8', 0.25);
-  else if (t.includes('tendance mature'))
-    color = blendColors(base, '#6D214F', 0.25);
-  else if (t.includes('tendance deshydrat') || t.includes('tendance déshydrat'))
-    color = blendColors(base, '#60A5FA', 0.25);
-  else if (t.includes('tendance couperose') || t.includes('tendance couperosée'))
-    color = blendColors(base, '#F87171', 0.25);
-  else if (t.includes('tendance atopique'))
-    color = blendColors(base, '#A78BFA', 0.25);
-  else if (t.includes('tendance mixte'))
-    color = blendColors(base, '#256D85', 0.25);
-  else if (t.includes('tendance normale'))
-    color = blendColors(base, '#059669', 0.25);
+  if (full.includes('tendance acné') || full.includes('tendance acne') || full.includes('tendance acneique') || full.includes('tendance acnéique'))
+    color = blendColors(base, '#DC2626', 0.60);
+  else if (full.includes('tendance grasse') || full.includes('predominance grasse') || full.includes('prédominance grasse'))
+    color = blendColors(base, '#D4A017', 0.60);
+  else if (full.includes('tendance seche') || full.includes('tendance sèche') || full.includes('predominance seche') || full.includes('prédominance sèche'))
+    color = blendColors(base, '#C68642', 0.60);
+  else if (full.includes('tendance pigment') || full.includes('tendance terne'))
+    color = blendColors(base, '#92400E', 0.60);
+  else if (full.includes('tendance sensible') || full.includes('tendance reactive') || full.includes('tendance réactive'))
+    color = blendColors(base, '#D977A8', 0.60);
+  else if (full.includes('tendance mature'))
+    color = blendColors(base, '#6D214F', 0.60);
+  else if (full.includes('tendance deshydrat') || full.includes('tendance déshydrat'))
+    color = blendColors(base, '#60A5FA', 0.60);
+  else if (full.includes('tendance couperose') || full.includes('tendance couperosée'))
+    color = blendColors(base, '#F87171', 0.60);
+  else if (full.includes('tendance atopique'))
+    color = blendColors(base, '#A78BFA', 0.60);
+  else if (full.includes('tendance mixte'))
+    color = blendColors(base, '#256D85', 0.60);
+  else if (full.includes('tendance normale'))
+    color = blendColors(base, '#059669', 0.60);
 
   const labelMap = {
     'acne': 'Peau Acnéique', 'grasse': 'Peau Grasse', 'mixte': 'Peau Mixte',
