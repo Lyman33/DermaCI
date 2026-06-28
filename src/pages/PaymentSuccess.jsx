@@ -73,10 +73,18 @@ export default function PaymentSuccess() {
     localStorage.setItem('dermaci_dermabot_unlocked', '1');
 
     // Si le paiement vient du paywall "limite atteinte" -> retour ACCUEIL avec animation premium
+    // Securite : on ne fait confiance au marqueur 'home' que s'il est RECENT (< 30 min),
+    // pour qu'un vieux marqueur oublie ne detourne jamais le retour.
     let origin = '';
-    try { origin = localStorage.getItem('dermaci_payment_origin') || ''; } catch {}
-    if (origin === 'home') {
-      try { localStorage.removeItem('dermaci_payment_origin'); } catch {}
+    let startedAt = 0;
+    try {
+      origin = localStorage.getItem('dermaci_payment_origin') || '';
+      startedAt = parseInt(localStorage.getItem('dermaci_payment_started') || '0', 10) || 0;
+    } catch {}
+    const recent = startedAt > 0 && (Date.now() - startedAt) < 30 * 60 * 1000;
+    // On nettoie TOUJOURS le marqueur, quelle que soit la decision (pas de residu).
+    try { localStorage.removeItem('dermaci_payment_origin'); } catch {}
+    if (origin === 'home' && recent) {
       navigate('/?premium=1');
       return;
     }
