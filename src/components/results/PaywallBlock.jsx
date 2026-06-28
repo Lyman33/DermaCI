@@ -52,6 +52,9 @@ export default function PaywallBlock({ onUnlock, paymentPending, user }) {
     if (loading) return;
     setLoading(true);
     localStorage.setItem('dermaci_payment_started', Date.now().toString());
+    // Ce flux = retour vers les RESULTATS. On efface tout marqueur 'home' qui
+    // proviendrait d'un paiement formulaire abandonne (evite un mauvais retour).
+    try { localStorage.removeItem('dermaci_payment_origin'); } catch {}
 
     const email = getEmail();
 
