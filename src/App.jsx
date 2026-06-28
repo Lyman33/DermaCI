@@ -13,6 +13,7 @@ import Analysis from './pages/Analysis';
 import Results from './pages/Results';
 import History from './pages/History';
 import PaymentSuccess from './pages/PaymentSuccess';
+import PremiumSuccess from './pages/PremiumSuccess';
 import About from './pages/About';
 import AccessDenied from './pages/AccessDenied';
 import MagicLink from './pages/MagicLink';
@@ -48,6 +49,7 @@ const PublicApp = () => {
       <Route path="/analyses" element={<History />} />
 
       <Route path="/payment-success" element={<PaymentSuccess />} />
+      <Route path="/premium-success" element={<PremiumSuccess />} />
       <Route path="/about" element={<About />} />
       <Route path="/magic-link" element={<MagicLink />} />
       <Route path="/dermabot" element={<DermaBot />} />
