@@ -26,39 +26,42 @@ function blendColors(hex1, hex2, ratio) {
 }
 
 function getSkinTypeColor(skinType) {
-  const t = (skinType || '').toLowerCase();
+  const full = (skinType || '').toLowerCase();
+  // Couleur de base = TYPE PRINCIPAL (avant "a tendance"), pas la tendance.
+  const t = full.split(/\s*[aà]\s+tendance\s*/)[0];
   let base = '#00A878';
-  if (t.includes('acné') || t.includes('acne') || t.includes('acneique') || t.includes('acnéique')) base = '#DC2626';
-  else if (t.includes('grasse'))                                        base = '#D4A017';
+  if (t.includes('grasse'))                                             base = '#D4A017';
   else if (t.includes('mixte'))                                         base = '#256D85';
   else if (t.includes('sèche') || t.includes('seche'))                 base = '#C68642';
   else if (t.includes('sensible'))                                      base = '#D977A8';
   else if (t.includes('mature'))                                        base = '#6D214F';
   else if (t.includes('déshydrat') || t.includes('deshydrat'))         base = '#60A5FA';
   else if (t.includes('normale'))                                       base = '#059669';
+  else if (t.includes('acné') || t.includes('acne') || t.includes('acneique') || t.includes('acnéique')) base = '#DC2626';
 
-  if (t.includes('tendance acné') || t.includes('tendance acne') || t.includes('tendance acneique') || t.includes('tendance acnéique'))
-    return blendColors(base, '#DC2626', 0.25);
-  if (t.includes('tendance grasse') || t.includes('predominance grasse') || t.includes('prédominance grasse'))
-    return blendColors(base, '#D4A017', 0.25);
-  if (t.includes('tendance seche') || t.includes('tendance sèche') || t.includes('predominance seche') || t.includes('prédominance sèche'))
-    return blendColors(base, '#C68642', 0.25);
-  if (t.includes('tendance pigment') || t.includes('tendance terne'))
-    return blendColors(base, '#92400E', 0.25);
-  if (t.includes('tendance sensible') || t.includes('tendance reactive') || t.includes('tendance réactive'))
-    return blendColors(base, '#D977A8', 0.25);
-  if (t.includes('tendance mature'))
-    return blendColors(base, '#6D214F', 0.25);
-  if (t.includes('tendance deshydrat') || t.includes('tendance déshydrat'))
-    return blendColors(base, '#60A5FA', 0.25);
-  if (t.includes('tendance couperose') || t.includes('tendance couperosée'))
-    return blendColors(base, '#F87171', 0.25);
-  if (t.includes('tendance atopique'))
-    return blendColors(base, '#A78BFA', 0.25);
-  if (t.includes('tendance mixte'))
-    return blendColors(base, '#256D85', 0.25);
-  if (t.includes('tendance normale'))
-    return blendColors(base, '#059669', 0.25);
+  // La tendance ajuste la nuance a 60% (on lit la chaine complete 'full').
+  if (full.includes('tendance acné') || full.includes('tendance acne') || full.includes('tendance acneique') || full.includes('tendance acnéique'))
+    return blendColors(base, '#DC2626', 0.60);
+  if (full.includes('tendance grasse') || full.includes('predominance grasse') || full.includes('prédominance grasse'))
+    return blendColors(base, '#D4A017', 0.60);
+  if (full.includes('tendance seche') || full.includes('tendance sèche') || full.includes('predominance seche') || full.includes('prédominance sèche'))
+    return blendColors(base, '#C68642', 0.60);
+  if (full.includes('tendance pigment') || full.includes('tendance terne'))
+    return blendColors(base, '#92400E', 0.60);
+  if (full.includes('tendance sensible') || full.includes('tendance reactive') || full.includes('tendance réactive'))
+    return blendColors(base, '#D977A8', 0.60);
+  if (full.includes('tendance mature'))
+    return blendColors(base, '#6D214F', 0.60);
+  if (full.includes('tendance deshydrat') || full.includes('tendance déshydrat'))
+    return blendColors(base, '#60A5FA', 0.60);
+  if (full.includes('tendance couperose') || full.includes('tendance couperosée'))
+    return blendColors(base, '#F87171', 0.60);
+  if (full.includes('tendance atopique'))
+    return blendColors(base, '#A78BFA', 0.60);
+  if (full.includes('tendance mixte'))
+    return blendColors(base, '#256D85', 0.60);
+  if (full.includes('tendance normale'))
+    return blendColors(base, '#059669', 0.60);
 
   return base;
 }
