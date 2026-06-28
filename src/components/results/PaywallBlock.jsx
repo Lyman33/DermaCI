@@ -18,6 +18,20 @@ const FEATURES = [
 // Lien direct de secours (si initPayment est indisponible)
 const FALLBACK_PAYMENT_URL = 'https://geniuspay.ci/product/dermaci-BI38zG';
 
+// Identifiant d'appareil stable (meme cle que partout dans l'app)
+function getDeviceId() {
+  try {
+    let d = localStorage.getItem('dermaci_device_id');
+    if (!d) {
+      d = `dev_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+      localStorage.setItem('dermaci_device_id', d);
+    }
+    return d;
+  } catch {
+    return `dev_${Date.now()}`;
+  }
+}
+
 export default function PaywallBlock({ onUnlock, paymentPending, user }) {
   const [loading, setLoading] = useState(false);
 
@@ -45,7 +59,7 @@ export default function PaywallBlock({ onUnlock, paymentPending, user }) {
     // et renvoie un lien GeniusPay personnalise -> permet de debloquer le bon compte.
     try {
       if (email) {
-        const res = await base44.functions.invoke('initPayment', { email });
+        const res = await base44.functions.invoke('initPayment', { email, device_id: getDeviceId() });
         const data = res?.data || res || {};
         if (data?.already_premium) {
           // Deja premium : on debloque directement
