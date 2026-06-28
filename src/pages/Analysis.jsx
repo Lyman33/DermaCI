@@ -425,6 +425,17 @@ export default function Analysis() {
 
   const handlePhotoChange = (file, url) => { setPhoto(file); setPhotoUrl(url); setError(null); };
 
+  // Cet appareil a-t-il deja debloque le premium ? (flag pose apres paiement)
+  const isDevicePremium = () => {
+    try {
+      if (localStorage.getItem('dermaci_dermabot_unlocked') === '1') return true;
+      // Verifie aussi un eventuel cache premium par email
+      const em = localStorage.getItem('dermaci_device_email') || '';
+      if (em && localStorage.getItem('dermaci_premium_' + em.toLowerCase().trim()) === '1') return true;
+    } catch {}
+    return false;
+  };
+
   // Identifiant d'appareil stable (anti-gaspillage). Reutilise celui qui existe deja.
   const getDeviceId = () => {
     try {
@@ -508,7 +519,7 @@ export default function Analysis() {
           analysis_id: analysisId,
           photo_url: photoUrl, age: formData.age, genre: formData.genre,
           temps_soins: formData.temps_soins, created_by: userEmail, user_email: userEmail,
-          device_id: getDeviceId(),
+          device_id: getDeviceId(), is_premium: isDevicePremium(),
         });
         const rd = resp?.data || resp || {};
         // Limite gratuite atteinte -> on arrete proprement et on montre le message
