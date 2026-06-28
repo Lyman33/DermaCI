@@ -425,6 +425,20 @@ export default function Analysis() {
 
   const handlePhotoChange = (file, url) => { setPhoto(file); setPhotoUrl(url); setError(null); };
 
+  // Identifiant d'appareil stable (anti-gaspillage). Reutilise celui qui existe deja.
+  const getDeviceId = () => {
+    try {
+      let d = localStorage.getItem('dermaci_device_id');
+      if (!d) {
+        d = `dev_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+        localStorage.setItem('dermaci_device_id', d);
+      }
+      return d;
+    } catch {
+      return `dev_${Date.now()}`;
+    }
+  };
+
   const handleSubmit = async (formData) => {
     setFormData(formData);
     setStep(3);
@@ -494,8 +508,19 @@ export default function Analysis() {
           analysis_id: analysisId,
           photo_url: photoUrl, age: formData.age, genre: formData.genre,
           temps_soins: formData.temps_soins, created_by: userEmail, user_email: userEmail,
+          device_id: getDeviceId(),
         });
         const rd = resp?.data || resp || {};
+        // Limite gratuite atteinte -> on arrete proprement et on montre le message
+        if (rd?.error === 'free_limit_reached' || rd?.error === 'rate_limited') {
+          clearInterval(barTimer);
+          doneRef.current = true;
+          localStorage.removeItem('dermaci_analysis_in_progress');
+          setStep(2);
+          setError(rd?.message || "Tu as déjà utilisé ton analyse gratuite. Débloque l'accès premium pour continuer.");
+          setIsAnalyzing(false);
+          return;
+        }
         if (rd?.success === false || rd?.error) analyzeErr = rd?.message || rd?.error;
       } catch (e) {
         // Coupure reseau possible : la fonction a peut-etre fini cote serveur.
