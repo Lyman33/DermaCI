@@ -147,6 +147,28 @@ async function uploadWithRetry(file, maxRetries = 3) {
   throw lastError;
 }
 
+
+// ── Detection de visage GRATUITE (native navigateur) ────────────────────────
+// Marche surtout sur Chrome Android. Sur les navigateurs sans support
+// (Safari iPhone, navigateurs Instagram/TikTok), on NE bloque PAS un vrai
+// client : on renvoie { supported:false } et on laisse passer.
+async function detectFace(file) {
+  try {
+    if (typeof window === 'undefined' || !('FaceDetector' in window)) {
+      return { supported: false };
+    }
+    const bitmap = await createImageBitmap(file);
+    // eslint-disable-next-line no-undef
+    const detector = new FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+    const faces = await detector.detect(bitmap);
+    try { bitmap.close && bitmap.close(); } catch {}
+    return { supported: true, hasFace: Array.isArray(faces) && faces.length > 0 };
+  } catch (_) {
+    // Toute erreur -> on laisse passer (ne jamais bloquer un vrai client par bug technique)
+    return { supported: false };
+  }
+}
+
 export default function PhotoUpload({ photo, photoUrl, onPhotoChange, onContinue }) {
   const [uploading, setUploading]           = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -176,6 +198,14 @@ export default function PhotoUpload({ photo, photoUrl, onPhotoChange, onContinue
     const quality = await checkPhotoQuality(file);
     if (!quality.ok) {
       setError(quality.message);
+      onPhotoChange(null, '');
+      return;
+    }
+
+    // ── DETECTION DE VISAGE (gratuite, si le navigateur la supporte) ────────
+    const face = await detectFace(file);
+    if (face.supported && !face.hasFace) {
+      setError("Aucun visage détecté sur cette photo. DermaCI analyse uniquement le visage : prends une photo nette de ton visage, bien éclairé et de face.");
       onPhotoChange(null, '');
       return;
     }
