@@ -522,12 +522,7 @@ export default function Analysis() {
   const handlePaywallUnlock = async () => {
     if (paywallLoading) return;
     setPaywallLoading(true);
-    // Marqueur : ce paiement vient du paywall-limite -> retour ACCUEIL (pas resultats)
-    // On (re)pose proprement le marqueur 'home' (ecrase tout etat precedent).
-    try {
-      localStorage.setItem('dermaci_payment_started', Date.now().toString());
-      localStorage.setItem('dermaci_payment_origin', 'home');
-    } catch {}
+    try { localStorage.setItem('dermaci_payment_started', Date.now().toString()); } catch {}
 
     let email = '';
     try {
@@ -536,28 +531,37 @@ export default function Analysis() {
     } catch {}
     if (!email) { try { email = (localStorage.getItem('dermaci_device_email') || '').toLowerCase().trim(); } catch {} }
 
-    const FALLBACK = 'https://geniuspay.ci/product/dermaci-BI38zG';
-    const redirect = 'https://dermaci.app/payment-success';
+    // Si deja premium -> pas de paiement : on relance directement son analyse.
+    if (isDevicePremium()) {
+      markDevicePremium();
+      setPaywallLoading(false);
+      setShowPaywall(false);
+      if (formData) { handleSubmit(formData); }
+      return;
+    }
+
+    // On enregistre le paiement (email + device_id) cote serveur, SANS suivre le
+    // payment_url renvoye (qui pointe vers payment-success / FLUX 2).
     try {
       if (email) {
         const res = await base44.functions.invoke('initPayment', { email, device_id: getDeviceId() });
         const data = res?.data || res || {};
         if (data?.already_premium) {
-          // Deja premium : on memorise, on ferme le paywall et on RELANCE son analyse
-          // (c'est ce qu'il voulait faire) au lieu de l'envoyer ailleurs.
           markDevicePremium();
           setPaywallLoading(false);
           setShowPaywall(false);
           if (formData) { handleSubmit(formData); }
           return;
         }
-        if (data?.payment_url) { window.location.href = data.payment_url; return; }
       }
-    } catch (e) { console.warn('[paywall] initPayment indispo, lien direct:', e?.message); }
+    } catch (e) { console.warn('[paywall] initPayment (enregistrement) indispo:', e?.message); }
 
+    // FLUX 1 : LIEN B dedie -> redirect_url = premium-success (-> accueil anime + premium a vie)
+    const LINK_B = 'https://geniuspay.ci/product/dermaci-BXJx6A';
+    const redirect = 'https://dermaci.app/premium-success';
     const url = email
-      ? `${FALLBACK}?email=${encodeURIComponent(email)}&redirect_url=${encodeURIComponent(redirect)}`
-      : `${FALLBACK}?redirect_url=${encodeURIComponent(redirect)}`;
+      ? `${LINK_B}?email=${encodeURIComponent(email)}&redirect_url=${encodeURIComponent(redirect)}`
+      : `${LINK_B}?redirect_url=${encodeURIComponent(redirect)}`;
     window.location.href = url;
   };
 
