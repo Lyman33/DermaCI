@@ -585,6 +585,35 @@ export default function Analysis() {
 
   const handleSubmit = async (formData) => {
     setFormData(formData);
+
+    // ── VERIFICATION INSTANTANEE (avant tout) : cet appareil a-t-il droit a une analyse gratuite ?
+    // N'appelle JAMAIS l'IA. Si limite atteinte -> paywall direct, sans ecran de chargement.
+    try {
+      let preEmail = '';
+      try {
+        const isAuthed = await base44.auth.isAuthenticated();
+        if (isAuthed) { const u = await base44.auth.me(); preEmail = (u?.email || '').toLowerCase().trim(); }
+      } catch {}
+      if (!preEmail) { try { preEmail = (localStorage.getItem('dermaci_device_email') || '').toLowerCase().trim(); } catch {} }
+
+      const check = await base44.functions.invoke('checkDeviceLimit', {
+        device_id: getDeviceId(),
+        user_email: preEmail,
+        is_premium: isDevicePremium(),
+      });
+      const cd = check?.data || check || {};
+      if (cd?.allowed === false) {
+        // Limite atteinte -> paywall INSTANTANE (aucune analyse, aucun token)
+        setIsAnalyzing(false);
+        setShowPaywall(true);
+        return;
+      }
+    } catch (e) {
+      // Si la verif echoue (reseau...), on NE bloque PAS un vrai client : on laisse l'analyse suivre
+      // (la barriere serveur dans analyzeSkinnComplete reste un 2e filet de securite)
+      console.warn('[precheck] indispo, on continue:', e?.message);
+    }
+
     setStep(3);
     setProgress(0);
     setCurrentStepText("Initialisation de l'analyse...");
