@@ -5,7 +5,7 @@ import BackButton from '../components/shared/BackButton';
 import PhotoUpload from '../components/analysis/PhotoUpload';
 import UserContextForm from '../components/analysis/UserContextForm';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ScanFace, FlaskConical, Droplets, BookOpen, Leaf, Sparkles, AlertCircle, CheckCircle, Lock, ArrowRight, Infinity as InfinityIcon, Microscope, Salad, MessageCircle, Users, Loader2 } from 'lucide-react';
+import { ScanFace, FlaskConical, Droplets, BookOpen, Leaf, Sparkles, AlertCircle, CheckCircle, Lock, ArrowRight, Repeat, Microscope, Salad, MessageCircle, Users, Loader2 } from 'lucide-react';
 
 const LOGO_URL = "https://media.base44.com/images/public/6a0e53b978ea3d5f75666bd8/fd6f17ab5_LE_LOGO_OFFICIEL.png";
 const NOTIF_ICON = "https://media.base44.com/images/public/6a0e53b978ea3d5f75666bd8/fd6f17ab5_LE_LOGO_OFFICIEL.png";
@@ -370,7 +370,7 @@ function sendNotification(title, body, tag, analysisId, navigate, requireInterac
 // ── PAYWALL "limite gratuite atteinte" — version premium animee ─────────────
 function PaywallLimitScreen({ onUnlock, loading }) {
   const benefits = [
-    { icon: InfinityIcon, title: "Analyses illimitées", desc: "Analyse ta peau autant que tu veux" },
+    { icon: Repeat, title: "Analyses illimitées", desc: "Analyse ta peau autant que tu veux" },
     { icon: Microscope,   title: "Diagnostic complet", desc: "Problèmes, causes, sévérité, zones" },
     { icon: Leaf,         title: "Routine + actifs sur-mesure", desc: "Matin et soir, adaptés à ta peau" },
     { icon: Salad,        title: "Nutrition ivoirienne", desc: "Aliments locaux pour ta peau" },
