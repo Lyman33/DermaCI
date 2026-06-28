@@ -5,7 +5,7 @@ import BackButton from '../components/shared/BackButton';
 import PhotoUpload from '../components/analysis/PhotoUpload';
 import UserContextForm from '../components/analysis/UserContextForm';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ScanFace, FlaskConical, Droplets, BookOpen, Leaf, Sparkles, AlertCircle, CheckCircle } from 'lucide-react';
+import { ScanFace, FlaskConical, Droplets, BookOpen, Leaf, Sparkles, AlertCircle, CheckCircle, Lock, ArrowRight, Infinity as InfinityIcon, Microscope, Salad, MessageCircle, Users, Loader2 } from 'lucide-react';
 
 const LOGO_URL = "https://media.base44.com/images/public/6a0e53b978ea3d5f75666bd8/fd6f17ab5_LE_LOGO_OFFICIEL.png";
 const NOTIF_ICON = "https://media.base44.com/images/public/6a0e53b978ea3d5f75666bd8/fd6f17ab5_LE_LOGO_OFFICIEL.png";
@@ -366,6 +366,99 @@ function sendNotification(title, body, tag, analysisId, navigate, requireInterac
   } catch (e) { console.warn('Notification failed:', e.message); }
 }
 
+
+// ── PAYWALL "limite gratuite atteinte" — version premium animee ─────────────
+function PaywallLimitScreen({ onUnlock, loading }) {
+  const benefits = [
+    { icon: InfinityIcon, title: "Analyses illimitées", desc: "Analyse ta peau autant que tu veux" },
+    { icon: Microscope,   title: "Diagnostic complet", desc: "Problèmes, causes, sévérité, zones" },
+    { icon: Leaf,         title: "Routine + actifs sur-mesure", desc: "Matin et soir, adaptés à ta peau" },
+    { icon: Salad,        title: "Nutrition ivoirienne", desc: "Aliments locaux pour ta peau" },
+    { icon: MessageCircle,title: "DermaBot 24/7", desc: "Ton coach peau, à tout moment" },
+  ];
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4 py-8"
+      style={{ background: 'linear-gradient(160deg, #07140d 0%, #04130c 55%, #08180f 100%)' }}>
+      <motion.div
+        className="w-full max-w-sm rounded-3xl overflow-hidden"
+        style={{ background: '#07140d', border: '1px solid rgba(0,200,150,0.18)' }}
+        initial={{ opacity: 0, y: 24, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+      >
+        {/* Header avec logo */}
+        <div className="px-6 pt-7 pb-5 text-center" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <motion.div
+            className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3"
+            style={{ background: 'rgba(0,200,150,0.12)', border: '1px solid rgba(0,200,150,0.34)' }}
+            animate={{ boxShadow: ['0 0 0px rgba(0,200,150,0)', '0 0 22px rgba(0,200,150,0.35)', '0 0 0px rgba(0,200,150,0)'] }}
+            transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <img src={LOGO_URL} alt="DermaCI" className="w-12 h-12 object-contain" loading="lazy" />
+          </motion.div>
+          <motion.p className="text-xs tracking-wider font-semibold mb-1.5" style={{ color: '#00C896' }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
+            TON ANALYSE GRATUITE EST TERMINÉE
+          </motion.p>
+          <motion.h2 className="text-xl font-black text-white leading-snug"
+            initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
+            Passe en illimité<br />et révèle toute ta peau
+          </motion.h2>
+        </div>
+
+        {/* Benefices */}
+        <div className="px-4 pt-4 pb-1">
+          <p className="text-[11px] tracking-wide font-semibold mb-2.5 px-1" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            CE QUI T'ATTEND, DÉBLOQUÉ À VIE
+          </p>
+          <div className="space-y-2">
+            {benefits.map((b, i) => {
+              const Icon = b.icon;
+              return (
+                <motion.div key={i}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                  style={{ background: 'rgba(255,255,255,0.03)' }}
+                  initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.35 + i * 0.08 }}>
+                  <Icon className="w-5 h-5 flex-shrink-0" style={{ color: '#00C896' }} />
+                  <div>
+                    <p className="text-sm text-white font-semibold leading-tight">{b.title}</p>
+                    <p className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>{b.desc}</p>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* CTA */}
+        <div className="px-4 pt-4 pb-6">
+          <motion.button
+            onClick={onUnlock}
+            disabled={loading}
+            className="w-full rounded-2xl py-4 flex flex-col items-center justify-center"
+            style={{ background: 'linear-gradient(135deg, #00A878, #00C896)', boxShadow: '0 10px 30px rgba(0,168,120,0.4)' }}
+            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.75 }}
+            whileTap={{ scale: loading ? 1 : 0.97 }}>
+            <div className="flex items-center gap-2">
+              {loading ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : <Lock className="w-5 h-5 text-white" />}
+              <span className="text-white font-black text-base">{loading ? 'Préparation…' : 'Débloquer mon analyse'}</span>
+              {!loading && <ArrowRight className="w-5 h-5 text-white" />}
+            </div>
+            <span className="text-white/90 text-xs font-semibold mt-1">2 000 FCFA · paiement unique · accès à vie</span>
+          </motion.button>
+          <motion.p className="text-center text-xs mt-3 flex items-center justify-center gap-1.5"
+            style={{ color: 'rgba(255,255,255,0.45)' }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }}>
+            <Users className="w-3.5 h-3.5" />
+            Rejoins déjà plus de 730 utilisateurs DermaCI
+          </motion.p>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 export default function Analysis() {
   const navigate = useNavigate();
 
@@ -378,6 +471,8 @@ export default function Analysis() {
   const [error, setError]                 = useState(null);
   const [formData, setFormData]           = useState(null);
   const doneRef                           = useRef(false);
+  const [showPaywall, setShowPaywall]     = useState(false);
+  const [paywallLoading, setPaywallLoading] = useState(false);
 
   useEffect(() => {
     document.title = 'DermaCI — Analyse dermatologique IA';
@@ -421,6 +516,44 @@ export default function Analysis() {
     localStorage.removeItem('dermaci_analysis_in_progress');
     setStep(2);
     setError("Votre analyse a pris trop de temps. Nos serveurs sont chargés, réessayez dans quelques instants 🙏");
+  };
+
+  // Paiement depuis le paywall "limite atteinte" -> GeniusPay -> payment-success -> accueil
+  const handlePaywallUnlock = async () => {
+    if (paywallLoading) return;
+    setPaywallLoading(true);
+    // Marqueur : ce paiement vient du paywall-limite -> retour ACCUEIL (pas resultats)
+    try {
+      localStorage.setItem('dermaci_payment_started', Date.now().toString());
+      localStorage.setItem('dermaci_payment_origin', 'home');
+    } catch {}
+
+    let email = '';
+    try {
+      const isAuthed = await base44.auth.isAuthenticated();
+      if (isAuthed) { const u = await base44.auth.me(); email = (u?.email || '').toLowerCase().trim(); }
+    } catch {}
+    if (!email) { try { email = (localStorage.getItem('dermaci_device_email') || '').toLowerCase().trim(); } catch {} }
+
+    const FALLBACK = 'https://geniuspay.ci/product/dermaci-BI38zG';
+    const redirect = 'https://dermaci.app/payment-success';
+    try {
+      if (email) {
+        const res = await base44.functions.invoke('initPayment', { email, device_id: getDeviceId() });
+        const data = res?.data || res || {};
+        if (data?.already_premium) {
+          try { localStorage.setItem('dermaci_dermabot_unlocked', '1'); } catch {}
+          navigate('/?premium=1');
+          return;
+        }
+        if (data?.payment_url) { window.location.href = data.payment_url; return; }
+      }
+    } catch (e) { console.warn('[paywall] initPayment indispo, lien direct:', e?.message); }
+
+    const url = email
+      ? `${FALLBACK}?email=${encodeURIComponent(email)}&redirect_url=${encodeURIComponent(redirect)}`
+      : `${FALLBACK}?redirect_url=${encodeURIComponent(redirect)}`;
+    window.location.href = url;
   };
 
   const handlePhotoChange = (file, url) => { setPhoto(file); setPhotoUrl(url); setError(null); };
@@ -522,14 +655,13 @@ export default function Analysis() {
           device_id: getDeviceId(), is_premium: isDevicePremium(),
         });
         const rd = resp?.data || resp || {};
-        // Limite gratuite atteinte -> on arrete proprement et on montre le message
+        // Limite gratuite atteinte -> afficher le BEAU paywall (pas le message rouge)
         if (rd?.error === 'free_limit_reached' || rd?.error === 'rate_limited') {
           clearInterval(barTimer);
           doneRef.current = true;
           localStorage.removeItem('dermaci_analysis_in_progress');
-          setStep(2);
-          setError(rd?.message || "Tu as déjà utilisé ton analyse gratuite. Débloque l'accès premium pour continuer.");
           setIsAnalyzing(false);
+          setShowPaywall(true);
           return;
         }
         if (rd?.success === false || rd?.error) analyzeErr = rd?.message || rd?.error;
@@ -555,6 +687,8 @@ export default function Analysis() {
       setIsAnalyzing(false);
     }
   };
+
+  if (showPaywall) return <PaywallLimitScreen onUnlock={handlePaywallUnlock} loading={paywallLoading} />;
 
   if (step === 3) return <LoaderScreen progress={progress} currentStepText={currentStepText} age={formData?.age} genre={formData?.genre} />;
 
