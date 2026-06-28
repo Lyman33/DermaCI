@@ -523,6 +523,7 @@ export default function Analysis() {
     if (paywallLoading) return;
     setPaywallLoading(true);
     // Marqueur : ce paiement vient du paywall-limite -> retour ACCUEIL (pas resultats)
+    // On (re)pose proprement le marqueur 'home' (ecrase tout etat precedent).
     try {
       localStorage.setItem('dermaci_payment_started', Date.now().toString());
       localStorage.setItem('dermaci_payment_origin', 'home');
@@ -542,8 +543,12 @@ export default function Analysis() {
         const res = await base44.functions.invoke('initPayment', { email, device_id: getDeviceId() });
         const data = res?.data || res || {};
         if (data?.already_premium) {
-          try { localStorage.setItem('dermaci_dermabot_unlocked', '1'); } catch {}
-          navigate('/?premium=1');
+          // Deja premium : on memorise, on ferme le paywall et on RELANCE son analyse
+          // (c'est ce qu'il voulait faire) au lieu de l'envoyer ailleurs.
+          markDevicePremium();
+          setPaywallLoading(false);
+          setShowPaywall(false);
+          if (formData) { handleSubmit(formData); }
           return;
         }
         if (data?.payment_url) { window.location.href = data.payment_url; return; }
@@ -561,12 +566,24 @@ export default function Analysis() {
   // Cet appareil a-t-il deja debloque le premium ? (flag pose apres paiement)
   const isDevicePremium = () => {
     try {
+      // Plusieurs signaux locaux : si l'un est vrai, l'appareil est premium.
       if (localStorage.getItem('dermaci_dermabot_unlocked') === '1') return true;
-      // Verifie aussi un eventuel cache premium par email
-      const em = localStorage.getItem('dermaci_device_email') || '';
-      if (em && localStorage.getItem('dermaci_premium_' + em.toLowerCase().trim()) === '1') return true;
+      if (localStorage.getItem('dermaci_just_unlocked') === '1') return true;
+      if (localStorage.getItem('dermaci_device_authorized') === '1') return true;
+      const em = (localStorage.getItem('dermaci_device_email') || '').toLowerCase().trim();
+      if (em && localStorage.getItem('dermaci_premium_' + em) === '1') return true;
     } catch {}
     return false;
+  };
+
+  // Pose TOUS les marqueurs premium d'un coup (appareil reconnu premium a vie).
+  const markDevicePremium = () => {
+    try {
+      localStorage.setItem('dermaci_dermabot_unlocked', '1');
+      localStorage.setItem('dermaci_device_authorized', '1');
+      const em = (localStorage.getItem('dermaci_device_email') || '').toLowerCase().trim();
+      if (em) localStorage.setItem('dermaci_premium_' + em, '1');
+    } catch {}
   };
 
   // Identifiant d'appareil stable (anti-gaspillage). Reutilise celui qui existe deja.
@@ -602,6 +619,10 @@ export default function Analysis() {
         is_premium: isDevicePremium(),
       });
       const cd = check?.data || check || {};
+      // Le serveur confirme le premium -> on memorise localement (plus jamais de paywall)
+      if (cd?.premium === true) {
+        markDevicePremium();
+      }
       if (cd?.allowed === false) {
         // Limite atteinte -> paywall INSTANTANE (aucune analyse, aucun token)
         setIsAnalyzing(false);
