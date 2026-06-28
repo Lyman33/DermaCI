@@ -63,14 +63,14 @@ export default function PremiumSuccess() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <div className="flex justify-center mb-6">
-          <img src={LOGO_URL} alt="DermaCI" className="w-16 h-16 object-contain" />
+        <div className="flex justify-center mb-8">
+          <img src={LOGO_URL} alt="DermaCI" className="object-contain" style={{ width: 128, height: 128 }} />
         </div>
         <div className="flex items-center justify-center gap-3 text-foreground">
-          <Loader2 className="w-6 h-6 animate-spin" style={{ color: '#00C896' }} />
-          <span className="font-semibold">Activation de ton accès premium…</span>
+          <Loader2 className="w-8 h-8 animate-spin" style={{ color: '#00C896' }} />
+          <span className="text-lg font-semibold">Activation de ton accès premium…</span>
         </div>
-        <p className="text-sm text-muted-foreground mt-3">Un instant, on prépare tout 🌿</p>
+        <p className="text-base text-muted-foreground mt-4">Un instant, on prépare tout 🌿</p>
       </motion.div>
     </div>
   );
