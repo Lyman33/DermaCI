@@ -72,7 +72,16 @@ export default function PaymentSuccess() {
     // Activer DermaBot uniquement au clic sur ce bouton
     localStorage.setItem('dermaci_dermabot_unlocked', '1');
 
-    // Toujours rediriger vers les résultats — récupérer l'ID depuis localStorage si non disponible
+    // Si le paiement vient du paywall "limite atteinte" -> retour ACCUEIL avec animation premium
+    let origin = '';
+    try { origin = localStorage.getItem('dermaci_payment_origin') || ''; } catch {}
+    if (origin === 'home') {
+      try { localStorage.removeItem('dermaci_payment_origin'); } catch {}
+      navigate('/?premium=1');
+      return;
+    }
+
+    // Sinon : rediriger vers les résultats — récupérer l'ID depuis localStorage si non disponible
     const aid = analysisId || localStorage.getItem('dermaci_last_analysis_id');
     if (aid) {
       navigate(`/results/${aid}?unlocked=1`);
@@ -125,7 +134,7 @@ export default function PaymentSuccess() {
           className="text-sm text-muted-foreground mb-8 leading-relaxed"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
         >
-          Votre accès premium est activé. Cliquez ci-dessous pour voir votre analyse complète débloquée.
+          Votre accès premium est activé à vie. Cliquez ci-dessous pour continuer.
         </motion.p>
 
         {/* Ce qui est débloqué */}
@@ -177,7 +186,7 @@ export default function PaymentSuccess() {
           ) : (
             <>
               <Sparkles className="w-6 h-6" />
-              Voir mon analyse
+              Continuer
               <ArrowRight className="w-6 h-6" />
             </>
           )}
