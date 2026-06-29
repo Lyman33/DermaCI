@@ -531,6 +531,7 @@ export default function Analysis() {
   const [error, setError]                 = useState(null);
   const [formData, setFormData]           = useState(null);
   const doneRef                           = useRef(false);
+  const submittingRef                     = useRef(false); // verrou anti-double-soumission
   const [showPaywall, setShowPaywall]     = useState(false);
   const [paywallLoading, setPaywallLoading] = useState(false);
   const [limitInfo, setLimitInfo]         = useState(null); // { reason, pass, resets_at }
@@ -676,6 +677,11 @@ export default function Analysis() {
   };
 
   const handleSubmit = async (formData) => {
+    // Verrou anti-doublon : si une soumission est deja en cours, on ignore ce 2e appel
+    // (evite qu'un double-clic ne cree 2 analyses identiques).
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+
     setFormData(formData);
 
     // ── VERIFICATION INSTANTANEE (avant tout) : cet appareil a-t-il droit a une analyse gratuite ?
@@ -702,6 +708,7 @@ export default function Analysis() {
       }
       if (cd?.allowed === false) {
         // BLOCAGE : on distingue le type pour afficher le bon ecran (aucun token consomme)
+        submittingRef.current = false;
         setIsAnalyzing(false);
         setLimitInfo({ reason: cd?.reason || 'free_limit_reached', pass: cd?.pass || 'gratuit', resets_at: cd?.resets_at || null });
         setShowPaywall(true);
@@ -813,6 +820,7 @@ export default function Analysis() {
       setError(errorMsg);
     } finally {
       setIsAnalyzing(false);
+      submittingRef.current = false; // relache le verrou anti-doublon (tous chemins)
     }
   };
 
