@@ -100,11 +100,20 @@ const CONFETTI = Array.from({ length: 28 }, (_, i) => ({
   rotate: Math.random() * 360,
 }));
 
-function PremiumUnlockedOverlay({ onDone }) {
+const PASS_LABELS = {
+  essentiel: { titre: 'Pass Essentiel activé !', detail: '25 analyses par mois, diagnostic complet et DermaBot.' },
+  pro:       { titre: 'Pass Pro activé !',       detail: '40 analyses par mois, DermaBot prioritaire et diagnostic complet.' },
+  premium:   { titre: 'Pass Premium activé !',   detail: 'des analyses illimitées, un DermaBot illimité et un accès prioritaire.' },
+};
+
+function PremiumUnlockedOverlay({ onDone, pass }) {
   useEffect(() => {
     const t = setTimeout(() => onDone?.(), 3600);
     return () => clearTimeout(t);
   }, [onDone]);
+
+  const info = PASS_LABELS[pass] || null;
+  const titre = info ? info.titre : 'Premium débloqué !';
 
   return (
     <motion.div
@@ -141,14 +150,17 @@ function PremiumUnlockedOverlay({ onDone }) {
         <motion.div className="flex items-center justify-center gap-2 mb-2"
           initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
           <Sparkles className="w-6 h-6" style={{ color: '#00C896' }} />
-          <h2 className="text-3xl font-black text-white">Premium débloqué !</h2>
+          <h2 className="text-3xl font-black text-white">{titre}</h2>
           <Sparkles className="w-6 h-6" style={{ color: '#00C896' }} />
         </motion.div>
 
         <motion.p className="text-base text-white/70 max-w-xs mx-auto leading-relaxed"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55 }}>
-          Tu as maintenant accès à <span className="font-bold" style={{ color: '#00C896' }}>tout</span> :
-          analyses illimitées, diagnostic complet et DermaBot 24/7.
+          {info ? (
+            <>Tu as maintenant accès à <span className="font-bold" style={{ color: '#00C896' }}>{info.detail.split(',')[0]}</span>{info.detail.includes(',') ? ', ' + info.detail.split(',').slice(1).join(',').trim() : '.'}</>
+          ) : (
+            <>Tu as maintenant accès à <span className="font-bold" style={{ color: '#00C896' }}>tout</span> : analyses illimitées, diagnostic complet et DermaBot 24/7.</>
+          )}
         </motion.p>
 
         <motion.p className="text-xs text-white/40 mt-6"
@@ -163,13 +175,21 @@ function PremiumUnlockedOverlay({ onDone }) {
 export default function Home() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showPremium, setShowPremium] = useState(false);
+  const [unlockedPass, setUnlockedPass] = useState(null);
 
   useEffect(() => {
     if (searchParams.get('premium') === '1') {
+      // Recuperer le pass (URL ?pass= en priorite, sinon localStorage)
+      let p = (searchParams.get('pass') || '').toLowerCase().trim();
+      if (!['essentiel','pro','premium'].includes(p)) {
+        try { p = (localStorage.getItem('dermaci_pass_type') || '').toLowerCase().trim(); } catch { p = ''; }
+      }
+      if (['essentiel','pro','premium'].includes(p)) setUnlockedPass(p);
       setShowPremium(true);
       // Nettoyer l'URL pour que l'animation ne se rejoue pas au refresh
       const sp = new URLSearchParams(searchParams);
       sp.delete('premium');
+      sp.delete('pass');
       setSearchParams(sp, { replace: true });
     }
   }, []);
@@ -178,7 +198,7 @@ export default function Home() {
     <div className="relative min-h-screen bg-background">
 
       <AnimatePresence>
-        {showPremium && <PremiumUnlockedOverlay onDone={() => setShowPremium(false)} />}
+        {showPremium && <PremiumUnlockedOverlay onDone={() => setShowPremium(false)} pass={unlockedPass} />}
       </AnimatePresence>
 
       <BackgroundAnimation />
