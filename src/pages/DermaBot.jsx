@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { ArrowLeft, Send, Globe, ChevronDown, Copy, Check, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Send, Globe, ChevronDown, Copy, Check, RotateCcw, Sparkles } from 'lucide-react';
 import DermaBotName from '@/components/dermabot/DermaBotName';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
@@ -197,6 +197,14 @@ function AssistantBubble({ msg }) {
             <TypewriterContent content={msg.content} />
           )}
         </div>
+        {msg.limitReached && !msg.thinking && (
+          <a href="/forfaits"
+            className="mt-2 ml-1 inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-sm"
+            style={{ background: 'linear-gradient(135deg, #00A878, #00C896)', color: '#fff', textDecoration: 'none', boxShadow: '0 6px 20px rgba(0,168,120,0.3)' }}>
+            <Sparkles className="w-4 h-4" />
+            Mettre à niveau
+          </a>
+        )}
         {msg.usedWebSearch && !msg.thinking && (
           <div className="mt-1 ml-1 flex items-center gap-1.5">
             <Globe className="w-3 h-3" style={{ color: '#00A878' }} />
@@ -242,6 +250,21 @@ export default function DermaBot() {
     setRows(Math.min(Math.max(lines, 1), 5));
   };
 
+  const getDeviceId = () => {
+    try {
+      let d = localStorage.getItem('dermaci_device_id');
+      if (!d) { d = `dev_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`; localStorage.setItem('dermaci_device_id', d); }
+      return d;
+    } catch { return `dev_${Date.now()}`; }
+  };
+  const isDevicePremium = () => {
+    try {
+      if (localStorage.getItem('dermaci_dermabot_unlocked') === '1') return true;
+      if (localStorage.getItem('dermaci_device_authorized') === '1') return true;
+    } catch {}
+    return false;
+  };
+
   const sendMessage = useCallback(async (text) => {
     const content = (text || input).trim();
     if (!content || sending) return;
@@ -261,11 +284,29 @@ export default function DermaBot() {
     ]);
 
     try {
+      let email = '';
+      try { email = (localStorage.getItem('dermaci_device_email') || '').toLowerCase().trim(); } catch {}
       const res = await base44.functions.invoke('dermaBotChat', {
         message: content,
         history: newHistory.slice(-8),
+        device_id: getDeviceId(),
+        user_email: email,
+        is_premium: isDevicePremium(),
       });
-      const { response, sources, usedWebSearch } = res?.data || {};
+      const data = res?.data || {};
+      // Limite DermaBot atteinte -> message + proposition d'upgrade
+      if (data?.limit_reached) {
+        const limitMsg = {
+          role: 'assistant',
+          content: data?.message || "Tu as atteint ta limite de messages DermaBot. 🌿",
+          limitReached: true,
+          id: thinkingId + 1,
+        };
+        setMessages(prev => [...prev.filter(m => m.id !== thinkingId), limitMsg]);
+        setSending(false);
+        return;
+      }
+      const { response, sources, usedWebSearch } = data;
       const botMsg = { role: 'assistant', content: response || "Pouvez-vous reformuler ? 🌿", sources: sources || [], usedWebSearch: !!usedWebSearch, id: thinkingId + 1 };
       setMessages(prev => [...prev.filter(m => m.id !== thinkingId), botMsg]);
       setConversationHistory([...newHistory, { role: 'assistant', content: botMsg.content }]);
