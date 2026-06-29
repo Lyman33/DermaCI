@@ -264,6 +264,14 @@ export default function DermaBot() {
     } catch {}
     return false;
   };
+  const getLocalPass = () => {
+    try {
+      const t = localStorage.getItem('dermaci_pass_type');
+      const exp = parseInt(localStorage.getItem('dermaci_pass_expires') || '0', 10) || 0;
+      if (t && ['essentiel','pro','premium'].includes(t) && exp > Date.now()) return t;
+    } catch {}
+    return null;
+  };
 
   const sendMessage = useCallback(async (text) => {
     const content = (text || input).trim();
@@ -292,6 +300,7 @@ export default function DermaBot() {
         device_id: getDeviceId(),
         user_email: email,
         is_premium: isDevicePremium(),
+        local_pass: getLocalPass(),
       });
       const data = res?.data || {};
       // Limite DermaBot atteinte -> message + proposition d'upgrade
