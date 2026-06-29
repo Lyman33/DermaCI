@@ -5,7 +5,7 @@ import BackButton from '../components/shared/BackButton';
 import PhotoUpload from '../components/analysis/PhotoUpload';
 import UserContextForm from '../components/analysis/UserContextForm';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ScanFace, FlaskConical, Droplets, BookOpen, Leaf, Sparkles, AlertCircle, CheckCircle, Lock, ArrowRight, Repeat, Microscope, Salad, MessageCircle, Users, Loader2 } from 'lucide-react';
+import { ScanFace, FlaskConical, Droplets, BookOpen, Leaf, Sparkles, AlertCircle, CheckCircle, Lock, ArrowRight, Repeat, Microscope, Salad, MessageCircle, Users, Loader2, Clock } from 'lucide-react';
 
 const LOGO_URL = "https://media.base44.com/images/public/6a0e53b978ea3d5f75666bd8/fd6f17ab5_LE_LOGO_OFFICIEL.png";
 const NOTIF_ICON = "https://media.base44.com/images/public/6a0e53b978ea3d5f75666bd8/fd6f17ab5_LE_LOGO_OFFICIEL.png";
@@ -368,7 +368,67 @@ function sendNotification(title, body, tag, analysisId, navigate, requireInterac
 
 
 // ── PAYWALL "limite gratuite atteinte" — version premium animee ─────────────
-function PaywallLimitScreen({ onUnlock, loading }) {
+function formatResetDate(iso) {
+  if (!iso) return null;
+  try {
+    const d = new Date(iso);
+    const jours = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+    const mois = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+    const h = d.getHours().toString().padStart(2,'0');
+    const m = d.getMinutes().toString().padStart(2,'0');
+    return `${jours[d.getDay()]} ${d.getDate()} ${mois[d.getMonth()]} à ${h}h${m}`;
+  } catch { return null; }
+}
+
+function PaywallLimitScreen({ onUnlock, loading, limitInfo, onUpgrade }) {
+  // Cas A : limite mensuelle d'un pass/decouverte atteinte -> disclaimer + "Mettre a niveau"
+  const isPassLimit = limitInfo && (limitInfo.reason === 'pass_limit_reached' || limitInfo.reason === 'rate_limited') && limitInfo.pass && limitInfo.pass !== 'gratuit';
+  if (isPassLimit) {
+    const resetStr = formatResetDate(limitInfo.resets_at);
+    const passLabel = limitInfo.pass.charAt(0).toUpperCase() + limitInfo.pass.slice(1);
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 py-8"
+        style={{ background: 'linear-gradient(160deg, #07140d 0%, #04130c 55%, #08180f 100%)' }}>
+        <motion.div className="w-full max-w-sm rounded-3xl overflow-hidden"
+          style={{ background: '#07140d', border: '1px solid rgba(0,200,150,0.18)' }}
+          initial={{ opacity: 0, y: 24, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.5, ease: 'easeOut' }}>
+          <div className="px-6 pt-7 pb-5 text-center" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <motion.div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3"
+              style={{ background: 'rgba(0,200,150,0.12)', border: '1px solid rgba(0,200,150,0.34)' }}
+              animate={{ boxShadow: ['0 0 0px rgba(0,200,150,0)', '0 0 22px rgba(0,200,150,0.35)', '0 0 0px rgba(0,200,150,0)'] }}
+              transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}>
+              <img src={LOGO_URL} alt="DermaCI" className="w-12 h-12 object-contain" loading="lazy" />
+            </motion.div>
+            <p className="text-xs tracking-wider font-semibold mb-1.5" style={{ color: '#00C896' }}>FORFAIT {passLabel.toUpperCase()}</p>
+            <h2 className="text-xl font-black text-white leading-snug">Tu as utilisé toutes<br />tes analyses ce mois-ci</h2>
+          </div>
+          <div className="px-6 py-5">
+            <div className="rounded-2xl p-4 mb-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="flex items-start gap-3">
+                <Clock className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#00C896' }} />
+                <div>
+                  <p className="text-sm text-white font-semibold">Ta prochaine analyse se débloque</p>
+                  <p className="text-sm mt-0.5" style={{ color: '#00C896' }}>{resetStr || 'dans quelques jours'}</p>
+                </div>
+              </div>
+            </div>
+            <p className="text-sm text-center mb-4" style={{ color: 'rgba(255,255,255,0.6)' }}>
+              Pas envie d'attendre ? Passe à un forfait supérieur et continue dès maintenant.
+            </p>
+            <motion.button onClick={onUpgrade} whileTap={{ scale: 0.97 }}
+              className="w-full rounded-2xl py-4 flex items-center justify-center gap-2"
+              style={{ background: 'linear-gradient(135deg, #00A878, #00C896)', boxShadow: '0 10px 30px rgba(0,168,120,0.4)' }}>
+              <Sparkles className="w-5 h-5 text-white" />
+              <span className="text-white font-black text-base">Mettre à niveau</span>
+              <ArrowRight className="w-5 h-5 text-white" />
+            </motion.button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Cas B : gratuit (jamais paye) -> paywall 2000 FCFA classique
   const benefits = [
     { icon: Repeat, title: "Analyses illimitées", desc: "Analyse ta peau autant que tu veux" },
     { icon: Microscope,   title: "Diagnostic complet", desc: "Problèmes, causes, sévérité, zones" },
@@ -473,6 +533,7 @@ export default function Analysis() {
   const doneRef                           = useRef(false);
   const [showPaywall, setShowPaywall]     = useState(false);
   const [paywallLoading, setPaywallLoading] = useState(false);
+  const [limitInfo, setLimitInfo]         = useState(null); // { reason, pass, resets_at }
 
   useEffect(() => {
     document.title = 'DermaCI — Analyse dermatologique IA';
@@ -617,19 +678,21 @@ export default function Analysis() {
       } catch {}
       if (!preEmail) { try { preEmail = (localStorage.getItem('dermaci_device_email') || '').toLowerCase().trim(); } catch {} }
 
-      const check = await base44.functions.invoke('checkDeviceLimit', {
+      const check = await base44.functions.invoke('checkAccess', {
         device_id: getDeviceId(),
         user_email: preEmail,
         is_premium: isDevicePremium(),
+        kind: 'analysis',
       });
       const cd = check?.data || check || {};
-      // Le serveur confirme le premium -> on memorise localement (plus jamais de paywall)
-      if (cd?.premium === true) {
+      // Si l'utilisateur a un pass payant ou decouverte -> on memorise localement
+      if (cd?.pass && cd.pass !== 'gratuit') {
         markDevicePremium();
       }
       if (cd?.allowed === false) {
-        // Limite atteinte -> paywall INSTANTANE (aucune analyse, aucun token)
+        // BLOCAGE : on distingue le type pour afficher le bon ecran (aucun token consomme)
         setIsAnalyzing(false);
+        setLimitInfo({ reason: cd?.reason || 'free_limit_reached', pass: cd?.pass || 'gratuit', resets_at: cd?.resets_at || null });
         setShowPaywall(true);
         return;
       }
@@ -742,7 +805,7 @@ export default function Analysis() {
     }
   };
 
-  if (showPaywall) return <PaywallLimitScreen onUnlock={handlePaywallUnlock} loading={paywallLoading} />;
+  if (showPaywall) return <PaywallLimitScreen onUnlock={handlePaywallUnlock} loading={paywallLoading} limitInfo={limitInfo} onUpgrade={() => navigate('/forfaits')} />;
 
   if (step === 3) return <LoaderScreen progress={progress} currentStepText={currentStepText} age={formData?.age} genre={formData?.genre} />;
 
