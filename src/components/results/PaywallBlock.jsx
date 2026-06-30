@@ -84,8 +84,8 @@ export default function PaywallBlock({ onUnlock, paymentPending, user }) {
     // Secours : lien direct (avec email en parametre si dispo)
     onUnlock?.();
     const fallback = email
-      ? `${FALLBACK_PAYMENT_URL}?email=${encodeURIComponent(email)}&redirect_url=${encodeURIComponent('https://dermaci.app/payment-success')}`
-      : `${FALLBACK_PAYMENT_URL}?redirect_url=${encodeURIComponent('https://dermaci.app/payment-success')}`;
+      ? FALLBACK_PAYMENT_URL
+      : FALLBACK_PAYMENT_URL;
     window.location.href = fallback;
   };
 
