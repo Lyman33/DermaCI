@@ -91,11 +91,8 @@ export default function Forfaits() {
     } catch (e) { /* on continue vers le lien quoi qu'il arrive */ }
 
     // Rediriger vers le lien GeniusPay du forfait (redirect_url déjà configuré côté produit)
-    const redirect = `https://dermaci.app/premium-success?pass=${plan.id}`;
-    const url = email
-      ? `${plan.link}?email=${encodeURIComponent(email)}&redirect_url=${encodeURIComponent(redirect)}`
-      : `${plan.link}?redirect_url=${encodeURIComponent(redirect)}`;
-    window.location.href = url;
+    // Lien NU : les Link Pay GeniusPay cassent avec ?email&redirect_url. Le redirect est configure cote produit.
+    window.location.href = plan.link;
   };
 
   return (
