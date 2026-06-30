@@ -620,11 +620,8 @@ export default function Analysis() {
 
     // FLUX 1 : LIEN B dedie -> redirect_url = premium-success (-> accueil anime + premium a vie)
     const LINK_B = 'https://geniuspay.ci/product/dermaci-BXJx6A';
-    const redirect = 'https://dermaci.app/premium-success';
-    const url = email
-      ? `${LINK_B}?email=${encodeURIComponent(email)}&redirect_url=${encodeURIComponent(redirect)}`
-      : `${LINK_B}?redirect_url=${encodeURIComponent(redirect)}`;
-    window.location.href = url;
+    // Lien NU : les Link Pay GeniusPay cassent avec ?email&redirect_url. Le redirect est configure cote produit.
+    window.location.href = LINK_B;
   };
 
   const handlePhotoChange = (file, url) => { setPhoto(file); setPhotoUrl(url); setError(null); };
