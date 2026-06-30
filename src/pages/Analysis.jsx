@@ -784,7 +784,7 @@ export default function Analysis() {
           analysis_id: analysisId,
           photo_url: photoUrl, age: formData.age, genre: formData.genre,
           temps_soins: formData.temps_soins, created_by: userEmail, user_email: userEmail,
-          device_id: getDeviceId(), is_premium: isDevicePremium(),
+          device_id: getDeviceId(), is_premium: isDevicePremium(), local_pass: getLocalPass(),
         });
         const rd = resp?.data || resp || {};
         // Limite gratuite atteinte -> afficher le BEAU paywall (pas le message rouge)
