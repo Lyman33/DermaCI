@@ -27,6 +27,42 @@ import BottomNav from '@/components/results/BottomNav';
 const arr = (v) => (Array.isArray(v) ? v : []);
 const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
 
+// ── DONNÉES DE DÉMO pour l'aperçu flouté (non-premium) ─────────────────────
+// Les analyses gratuites ne génèrent plus les rubriques payantes (économie de
+// crédits). Ces données statiques remplissent la zone floutée du paywall pour
+// garder EXACTEMENT le même rendu visuel qu'avant. Illisibles (blur 6px), elles
+// ne servent qu'à montrer "il y a du contenu riche derrière".
+const DEMO_ROUTINE_MATIN = [
+  { step_number: 1, step_name: 'Nettoyant doux', product_type: 'Gel nettoyant', actifs: ['Niacinamide'], why_this_step: 'Élimine le sébum accumulé pendant la nuit.', application_tip: 'Masser 30 secondes sur peau humide.' },
+  { step_number: 2, step_name: 'Sérum ciblé', product_type: 'Sérum concentré', actifs: ['Vitamine C'], why_this_step: 'Unifie le teint et protège du stress oxydatif.', application_tip: 'Trois gouttes sur peau sèche.' },
+  { step_number: 3, step_name: 'Protection solaire', product_type: 'SPF 50+', actifs: ['Filtres UV larges'], why_this_step: 'Indispensable sous le soleil ivoirien.', application_tip: 'Renouveler toutes les 3 heures.' },
+];
+const DEMO_ROUTINE_SOIR = [
+  { step_number: 1, step_name: 'Double nettoyage', product_type: 'Huile puis gel', actifs: [], why_this_step: 'Retire pollution, SPF et impuretés.', application_tip: 'Insister sur la zone T.' },
+  { step_number: 2, step_name: 'Actif de nuit', product_type: 'Sérum traitant', actifs: ['Rétinol'], why_this_step: 'Régénère la peau pendant le sommeil.', application_tip: 'Commencer 2 fois par semaine.' },
+  { step_number: 3, step_name: 'Crème réparatrice', product_type: 'Crème de nuit', actifs: ['Céramides'], why_this_step: 'Répare la barrière cutanée.', application_tip: 'Appliquer sur peau légèrement humide.' },
+];
+const DEMO_ACTIFS = [
+  { name: 'Niacinamide', emoji: '💧', targets: ['Pores', 'Sébum'], mechanism: 'Régule la production de sébum et resserre les pores.', why_adapted: 'Parfait pour le climat chaud et humide.', concentration: '5-10%', application: 'Matin et soir.', precautions: 'Introduire progressivement.', synergies: ['Zinc'], antagonisms: [] },
+  { name: 'Vitamine C', emoji: '🍊', targets: ['Taches', 'Éclat'], mechanism: 'Antioxydant qui inhibe la surproduction de mélanine.', why_adapted: 'Cible l\'hyperpigmentation des phototypes IV-VI.', concentration: '10-15%', application: 'Le matin avant le SPF.', precautions: 'Conserver à l\'abri de la lumière.', synergies: ['Vitamine E'], antagonisms: [] },
+  { name: 'Acide azélaïque', emoji: '✨', targets: ['Imperfections', 'Taches'], mechanism: 'Antibactérien et éclaircissant doux.', why_adapted: 'Très bien toléré par les peaux noires.', concentration: '10%', application: 'Le soir.', precautions: 'Légers picotements possibles au début.', synergies: ['Niacinamide'], antagonisms: [] },
+  { name: 'Acide hyaluronique', emoji: '💦', targets: ['Hydratation'], mechanism: 'Capte et retient l\'eau dans l\'épiderme.', why_adapted: 'Compense la déshydratation liée à la climatisation.', concentration: '1-2%', application: 'Sur peau humide.', precautions: 'Aucune particulière.', synergies: ['Céramides'], antagonisms: [] },
+];
+const DEMO_ALIMENTS = [
+  { name: 'Papaye', category: 'fruit', skin_targets: ['Éclat', 'Teint'], composition: { vitamines: ['C', 'A'], mineraux: ['Potassium'], antioxydants: ['Lycopène'] }, skin_benefits: 'Favorise le renouvellement cellulaire et l\'éclat du teint.', consommation: { frequence: '3x/semaine', quantite: '1 tranche', moment: 'Au petit-déjeuner', preparation: 'Fraîche' }, disponibilite: 'Tous les marchés d\'Abidjan' },
+  { name: 'Attiéké + poisson braisé', category: 'plat', skin_targets: ['Réparation'], composition: { vitamines: ['B12'], mineraux: ['Zinc', 'Sélénium'], antioxydants: ['Oméga-3'] }, skin_benefits: 'Les oméga-3 du poisson nourrissent la barrière cutanée.', consommation: { frequence: '2x/semaine', quantite: '1 portion', moment: 'Déjeuner', preparation: 'Braisé' }, disponibilite: 'Partout en Côte d\'Ivoire' },
+  { name: 'Sauce gombo + igname', category: 'plat', skin_targets: ['Hydratation'], composition: { vitamines: ['K', 'C'], mineraux: ['Magnésium'], antioxydants: ['Flavonoïdes'] }, skin_benefits: 'Riche en fibres et minéraux qui soutiennent la peau.', consommation: { frequence: '2x/semaine', quantite: '1 portion', moment: 'Dîner', preparation: 'Mijoté' }, disponibilite: 'Marchés locaux' },
+  { name: 'Jus de bissap', category: 'boisson', skin_targets: ['Antioxydant'], composition: { vitamines: ['C'], mineraux: ['Fer'], antioxydants: ['Anthocyanes'] }, skin_benefits: 'Puissant antioxydant qui protège du vieillissement cutané.', consommation: { frequence: 'Quotidien', quantite: '1 verre', moment: 'Journée', preparation: 'Sans sucre ajouté' }, disponibilite: 'Partout' },
+  { name: 'Noix de cajou nature', category: 'collation', skin_targets: ['Fermeté'], composition: { vitamines: ['E'], mineraux: ['Zinc', 'Cuivre'], antioxydants: ['Polyphénols'] }, skin_benefits: 'Le zinc soutient la cicatrisation et la production de collagène.', consommation: { frequence: '3x/semaine', quantite: '1 poignée', moment: 'Collation', preparation: 'Non salées' }, disponibilite: 'Production locale' },
+  { name: 'Dégué', category: 'dessert', skin_targets: ['Équilibre'], composition: { vitamines: ['B'], mineraux: ['Calcium'], antioxydants: ['Probiotiques'] }, skin_benefits: 'Les probiotiques du lait caillé soutiennent l\'équilibre peau-intestin.', consommation: { frequence: '2x/semaine', quantite: '1 bol', moment: 'Dessert', preparation: 'Maison' }, disponibilite: 'Partout' },
+];
+const DEMO_HABITUDES = [
+  { title: 'Protection solaire quotidienne', description: 'Appliquer un SPF50+ chaque matin, même par temps couvert.', frequency: 'Tous les jours', impact_level: 'eleve', why_ivory_coast: 'UV index 8-12 toute l\'année en Côte d\'Ivoire.' },
+  { title: 'Hydratation renforcée', description: 'Boire au moins 1,5L d\'eau répartie sur la journée.', frequency: 'Quotidien', impact_level: 'eleve', why_ivory_coast: 'La chaleur d\'Abidjan accélère la déshydratation cutanée.' },
+  { title: 'Taie d\'oreiller propre', description: 'Changer la taie 2 fois par semaine pour limiter les bactéries.', frequency: '2x/semaine', impact_level: 'moyen', why_ivory_coast: 'L\'humidité 70-90% favorise la prolifération bactérienne.' },
+];
+const DEMO_TRACKING = { next_analysis_delay: '4 semaines', expected_improvements: ['Teint plus uniforme', 'Réduction des imperfections', 'Meilleure hydratation'], comparison_message: 'Refais une analyse dans 4 semaines pour mesurer tes progrès.' };
+
 function getPremiumCacheKey(email) {
   return `dermaci_premium_${(email || '').toLowerCase().trim()}`;
 }
@@ -335,7 +371,12 @@ export default function Results() {
         setAnalysis(fetchedAnalysis);
 
         // ── AUTO-REPAIR : déclencher repairAnalysisC si actifs/aliments vides ──
+        // v2 : UNIQUEMENT pour les utilisateurs payants. Les analyses gratuites ont
+        // volontairement des rubriques vides (non générées = crédits économisés) ;
+        // le contenu complet est généré ici-même au moment où l'utilisateur devient premium.
+        const userHasPaid = justUnlockedParam || serverIsPremium || isForeverUnlocked();
         const needsRepair = (
+          userHasPaid &&
           fetchedAnalysis.analysis_complete === true &&
           (!Array.isArray(fetchedAnalysis.actifs) || fetchedAnalysis.actifs.length === 0)
         );
@@ -485,16 +526,19 @@ export default function Results() {
             userSelect: 'none',
             overflow: 'hidden'
           }}>
+            {/* Problèmes + causes : réels (toujours générés, même en gratuit). 
+                Le reste : données de démo statiques — le vrai contenu n'est généré 
+                qu'au paiement (via repairAnalysisC), le flou le rend illisible de toute façon. */}
             <ProblemsSection problems={analysis?.problems || []} />
             <CausesSection causes={analysis?.causes || []} />
             <RoutineSection 
-              routineMatin={analysis?.routine_matin || []} 
-              routineSoir={analysis?.routine_soir || []} 
+              routineMatin={DEMO_ROUTINE_MATIN} 
+              routineSoir={DEMO_ROUTINE_SOIR} 
             />
-            <ActifsSection actifs={analysis?.actifs || []} />
-            <NutritionSection aliments={analysis?.aliments || []} />
-            <HabitudesSection habitudes={analysis?.habitudes || []} />
-            <EvolutionSection tracking={analysis?.tracking || {}} />
+            <ActifsSection actifs={DEMO_ACTIFS} />
+            <NutritionSection aliments={DEMO_ALIMENTS} />
+            <HabitudesSection habitudes={DEMO_HABITUDES} />
+            <EvolutionSection tracking={DEMO_TRACKING} />
           </div>
         </>
       ) : (
