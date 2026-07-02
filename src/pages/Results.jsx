@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
-import { BarChart3, Home, AlertCircle, RefreshCw, Clock, Zap, AlertTriangle, TrendingDown, Sun, Moon, FlaskConical, Apple, Heart, LineChart, MapPin } from 'lucide-react';
+import { BarChart3, Home, AlertCircle, RefreshCw, Clock, Zap, AlertTriangle, TrendingDown, Sun, Moon, FlaskConical, Apple, Heart, LineChart, MapPin, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 
@@ -36,21 +36,34 @@ const premiumBlocksMissing = (a) => {
     || !a.tracking || typeof a.tracking !== 'object' || Object.keys(a.tracking).length === 0;
 };
 
-// Affiché à la place d'une rubrique dont le contenu est en cours de génération
-// (juste après le paiement). Elle se remplit automatiquement en quelques instants.
-function SectionPending() {
+// Affiché à la place d'une rubrique non générée (analyse faite en gratuit,
+// avant le passage premium). Politique produit : le programme complet est
+// généré sur la PROCHAINE analyse — message honnête + invitation à la lancer.
+function SectionPending({ onNewAnalysis }) {
   return (
     <div className="px-6 py-10 text-center">
       <div
-        className="w-8 h-8 mx-auto mb-4 rounded-full animate-spin"
-        style={{ border: '3px solid rgba(0,168,120,0.15)', borderTopColor: '#00A878' }}
-      />
+        className="w-12 h-12 mx-auto mb-4 rounded-full flex items-center justify-center"
+        style={{ background: 'rgba(0,168,120,0.10)', border: '1px solid rgba(0,168,120,0.25)' }}
+      >
+        <Sparkles className="w-6 h-6" style={{ color: '#00A878' }} />
+      </div>
       <p className="text-sm font-bold text-foreground mb-1">
-        ✨ Finalisation de ton programme personnalisé
+        Disponible dès ta prochaine analyse
       </p>
-      <p className="text-xs text-muted-foreground leading-relaxed">
-        Cette rubrique s'affichera automatiquement dans quelques instants.
+      <p className="text-xs text-muted-foreground leading-relaxed mb-5 max-w-xs mx-auto">
+        Ton accès premium est actif. Lance une nouvelle analyse pour obtenir ton
+        programme personnalisé complet, généré sur mesure pour ta peau.
       </p>
+      {onNewAnalysis && (
+        <button
+          onClick={onNewAnalysis}
+          className="px-6 py-3 rounded-full font-bold text-white text-sm"
+          style={{ background: 'linear-gradient(135deg, #00A878, #00C896)', boxShadow: '0 6px 20px rgba(0,168,120,0.35)' }}
+        >
+          Faire ma nouvelle analyse →
+        </button>
+      )}
     </div>
   );
 }
@@ -398,29 +411,24 @@ export default function Results() {
 
         setAnalysis(fetchedAnalysis);
 
-        // ── AUTO-REPAIR : compléter les rubriques manquantes (payants uniquement) ──
-        // Les analyses gratuites ont volontairement des rubriques vides (crédits
-        // économisés). Au paiement, PaymentSuccess a déjà lancé la génération et posé
-        // un flag ; ici on ne relance repairAnalysisC QUE si ce flag est absent/périmé
-        // (évite une double génération = double coût), puis on surveille la base et
-        // on remplit la page automatiquement dès que le contenu arrive.
+        // ── AUTO-REPAIR (filet de sécurité UNIQUEMENT) ────────────────────────
+        // Politique produit : une analyse générée en GRATUIT (toutes rubriques
+        // premium vides) n'est PAS complétée après paiement — le programme complet
+        // arrive avec la PROCHAINE analyse (message SectionPending + CTA).
+        // Le repair ne sert plus qu'aux analyses PAYANTES partiellement incomplètes
+        // (échec de parsing sur certains blocs) : quelques blocs présents, d'autres vides.
         const userHasPaid = justUnlockedParam || serverIsPremium || isForeverUnlocked();
+        const empty = (v) => !Array.isArray(v) || v.length === 0;
+        const allBlocksMissing = empty(fetchedAnalysis.routine_matin) && empty(fetchedAnalysis.routine_soir)
+          && empty(fetchedAnalysis.actifs) && empty(fetchedAnalysis.aliments) && empty(fetchedAnalysis.habitudes);
         const needsRepair = (
           userHasPaid &&
           fetchedAnalysis.analysis_complete === true &&
-          premiumBlocksMissing(fetchedAnalysis)
+          premiumBlocksMissing(fetchedAnalysis) &&
+          !allBlocksMissing
         );
         if (needsRepair) {
-          let alreadyFired = false;
-          try {
-            const t = parseInt(localStorage.getItem('dermaci_repair_fired_' + id) || '0', 10) || 0;
-            alreadyFired = t > 0 && (Date.now() - t) < 180000; // < 3 min
-          } catch {}
-          const fire = alreadyFired
-            ? Promise.resolve()
-            : base44.functions.invoke('repairAnalysisC', { analysis_id: id })
-                .then(() => { try { localStorage.setItem('dermaci_repair_fired_' + id, String(Date.now())); } catch {} });
-          fire
+          base44.functions.invoke('repairAnalysisC', { analysis_id: id })
             .then(() => {
               const start = Date.now();
               const poll = async () => {
@@ -593,11 +601,11 @@ export default function Results() {
           <CollapsibleSection label="Routine matin & soir" icon={<Sun className="w-4 h-4" />} color="#F5A623">
             {(routine_matin.length || routine_soir.length) ? (
               <RoutineSection routineMatin={routine_matin} routineSoir={routine_soir} photoUrl={photo_url} />
-            ) : <SectionPending />}
+            ) : <SectionPending onNewAnalysis={() => navigate('/analysis')} />}
           </CollapsibleSection>
 
           <CollapsibleSection label="Actifs scientifiques" icon={<FlaskConical className="w-4 h-4" />} color="#00C896">
-            {actifs.length ? <ActifsSection actifs={actifs} /> : <SectionPending />}
+            {actifs.length ? <ActifsSection actifs={actifs} /> : <SectionPending onNewAnalysis={() => navigate('/analysis')} />}
           </CollapsibleSection>
 
           <CollapsibleSection label="Pharmacies proches" icon={<MapPin className="w-4 h-4" />} color="#E74C3C">
@@ -606,19 +614,19 @@ export default function Results() {
                 <PharmacySection actifs={actifs} />
                 <PharmacyDisclaimer />
               </>
-            ) : <SectionPending />}
+            ) : <SectionPending onNewAnalysis={() => navigate('/analysis')} />}
           </CollapsibleSection>
 
           <CollapsibleSection label="Nutrition ivoirienne" icon={<Apple className="w-4 h-4" />} color="#F5A623">
-            {aliments.length ? <NutritionSection aliments={aliments} /> : <SectionPending />}
+            {aliments.length ? <NutritionSection aliments={aliments} /> : <SectionPending onNewAnalysis={() => navigate('/analysis')} />}
           </CollapsibleSection>
 
           <CollapsibleSection label="Habitudes de vie" icon={<Heart className="w-4 h-4" />} color="#EC4899">
-            {habitudes.length ? <HabitudesSection habitudes={habitudes} /> : <SectionPending />}
+            {habitudes.length ? <HabitudesSection habitudes={habitudes} /> : <SectionPending onNewAnalysis={() => navigate('/analysis')} />}
           </CollapsibleSection>
 
           <CollapsibleSection label="Évolution & Suivi" icon={<LineChart className="w-4 h-4" />} color="#06B6D4">
-            {Object.keys(tracking).length ? <EvolutionSection tracking={tracking} /> : <SectionPending />}
+            {Object.keys(tracking).length ? <EvolutionSection tracking={tracking} /> : <SectionPending onNewAnalysis={() => navigate('/analysis')} />}
           </CollapsibleSection>
 
           <DisclaimerSection />
