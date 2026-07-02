@@ -62,18 +62,10 @@ export default function PaymentSuccess() {
           setAnalysisId(serverAnalysisId);
         }
 
-        // ── PRÉ-GÉNÉRATION (démarre PENDANT la lecture de cette page) ──
-        // L'analyse gratuite n'a pas les rubriques payantes : on demande à
-        // repairAnalysisC de les générer MAINTENANT en arrière-plan. Le flag
-        // évite que Results.jsx relance la même génération (double coût).
-        const finalAid = serverAnalysisId || aid || null;
-        analysisIdRef.current = finalAid;
-        if (finalAid) {
-          try {
-            localStorage.setItem('dermaci_repair_fired_' + finalAid, String(Date.now()));
-            base44.functions.invoke('repairAnalysisC', { analysis_id: finalAid }).catch(() => {});
-          } catch {}
-        }
+        // Politique produit : pas de génération différée — le programme complet
+        // sera généré avec la PROCHAINE analyse (l'utilisateur est désormais premium,
+        // ses analyses partent directement en génération complète).
+        analysisIdRef.current = serverAnalysisId || aid || null;
       } catch (err) {
         console.error('[PaymentSuccess] activation:', err.message);
       }
@@ -175,8 +167,8 @@ export default function PaymentSuccess() {
           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
         >
           {[
-            '✅ Analyse complète débloquée instantanément',
-            '✅ Toutes vos futures analyses automatiquement débloquées',
+            '✅ Résultats de votre analyse débloqués',
+            '✅ Vos prochaines analyses avec programme complet (routine, actifs, nutrition…)',
             '✅ Historique complet sur "Mes analyses"',
             '✅ Accès à vie · Sans abonnement',
           ].map((item, i) => (
