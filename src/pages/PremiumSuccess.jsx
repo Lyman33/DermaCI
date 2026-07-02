@@ -76,6 +76,15 @@ export default function PremiumSuccess() {
         console.error('[PremiumSuccess] activation:', err?.message);
       }
 
+      // ── Pré-génération : si la dernière analyse (faite en gratuit) n'a pas
+      // encore ses rubriques complètes, on les génère MAINTENANT en arrière-plan.
+      // Quand l'utilisateur l'ouvrira, tout sera déjà là (repairAnalysisC ne fait
+      // rien si l'analyse est déjà complète — coût zéro dans ce cas).
+      try {
+        const lastId = localStorage.getItem('dermaci_last_analysis_id');
+        if (lastId) base44.functions.invoke('repairAnalysisC', { analysis_id: lastId }).catch(() => {});
+      } catch {}
+
       // Aller à l'accueil avec l'animation premium
       const dest = isPass ? `/?premium=1&pass=${passParam}` : '/?premium=1';
       navigate(dest, { replace: true });
