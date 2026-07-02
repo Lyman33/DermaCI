@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { CheckCircle, Sparkles, ArrowRight, Loader2 } from 'lucide-react';
@@ -11,6 +11,13 @@ export default function PaymentSuccess() {
   const [searchParams] = useSearchParams();
   const [ready, setReady] = useState(false);
   const [analysisId, setAnalysisId] = useState(null);
+  // ── Perfection de timing : le contenu complet (routines, actifs, aliments…)
+  // est généré PENDANT que l'utilisateur lit cette page. On ne l'envoie vers
+  // ses résultats que lorsque tout est écrit en base → jamais de section vide.
+  const [waitingContent, setWaitingContent] = useState(false);
+  const contentReadyRef = useRef(false);
+  const wantsResultsRef = useRef(false);
+  const analysisIdRef = useRef(null);
 
   // Dès l'arrivée sur la page → activer premium immédiatement, sans condition
   useEffect(() => {
@@ -58,8 +65,46 @@ export default function PaymentSuccess() {
 
           setAnalysisId(serverAnalysisId);
         }
+
+        // ── PRÉ-GÉNÉRATION (démarre PENDANT la lecture de cette page) ──
+        // L'analyse gratuite n'a pas les rubriques payantes : on demande à
+        // repairAnalysisC de les générer MAINTENANT, puis on surveille la base.
+        // Quand l'utilisateur cliquera, tout sera (presque toujours) déjà prêt.
+        const finalAid = serverAnalysisId || aid || null;
+        analysisIdRef.current = finalAid;
+        if (finalAid) {
+          try { base44.functions.invoke('repairAnalysisC', { analysis_id: finalAid }).catch(() => {}); } catch {}
+          const pollStart = Date.now();
+          const pollContent = async () => {
+            if (contentReadyRef.current) return;
+            // Cap de sécurité 90s : au-delà on laisse partir (Results a son propre filet)
+            if (Date.now() - pollStart > 90000) {
+              contentReadyRef.current = true;
+              if (wantsResultsRef.current) goToResults();
+              return;
+            }
+            try {
+              const res = await base44.functions.invoke('getAnalysis', { analysis_id: finalAid });
+              const a = res?.data?.data || res?.data || null;
+              if (a && Array.isArray(a.actifs) && a.actifs.length > 0
+                    && Array.isArray(a.routine_matin) && a.routine_matin.length > 0) {
+                contentReadyRef.current = true;
+                // Si l'utilisateur a déjà cliqué et attend → départ immédiat
+                if (wantsResultsRef.current) goToResults();
+                return;
+              }
+            } catch {}
+            setTimeout(pollContent, 3000);
+          };
+          setTimeout(pollContent, 2500);
+        } else {
+          // Pas d'analyse à compléter → rien à attendre
+          contentReadyRef.current = true;
+        }
       } catch (err) {
         console.error('[PaymentSuccess] activation:', err.message);
+        // En cas d'échec d'activation, ne jamais bloquer le bouton
+        contentReadyRef.current = true;
       }
 
       setReady(true);
@@ -67,6 +112,24 @@ export default function PaymentSuccess() {
 
     activate();
   }, []);
+
+  // Départ vers les résultats (utilisé au clic ET par le poll quand le contenu arrive)
+  const goToResults = () => {
+    const aid = analysisIdRef.current || localStorage.getItem('dermaci_last_analysis_id');
+    if (aid) {
+      navigate(`/results/${aid}?unlocked=1`);
+      return;
+    }
+    // Dernier recours : chercher dans la liste d'analyses
+    try {
+      const stored = JSON.parse(localStorage.getItem('dermaci_analyses') || '[]');
+      if (stored.length > 0) {
+        navigate(`/results/${stored[0]}?unlocked=1`);
+        return;
+      }
+    } catch {}
+    navigate('/analyses');
+  };
 
   const handleViewAnalysis = () => {
     // Activer DermaBot uniquement au clic sur ce bouton
@@ -89,20 +152,14 @@ export default function PaymentSuccess() {
       return;
     }
 
-    // Sinon : rediriger vers les résultats — récupérer l'ID depuis localStorage si non disponible
-    const aid = analysisId || localStorage.getItem('dermaci_last_analysis_id');
-    if (aid) {
-      navigate(`/results/${aid}?unlocked=1`);
+    // ── Perfection de timing : on ne part vers les résultats QUE si le contenu
+    // complet est écrit en base. Sinon, le bouton passe en mode préparation et
+    // le départ se fait automatiquement dès que c'est prêt (voir pollContent).
+    if (contentReadyRef.current) {
+      goToResults();
     } else {
-      // Dernier recours : chercher dans la liste d'analyses
-      try {
-        const stored = JSON.parse(localStorage.getItem('dermaci_analyses') || '[]');
-        if (stored.length > 0) {
-          navigate(`/results/${stored[0]}?unlocked=1`);
-          return;
-        }
-      } catch {}
-      navigate('/analyses');
+      wantsResultsRef.current = true;
+      setWaitingContent(true);
     }
   };
 
@@ -172,7 +229,7 @@ export default function PaymentSuccess() {
         {/* BOUTON — redirige directement */}
         <motion.button
           onClick={handleViewAnalysis}
-          disabled={!ready}
+          disabled={!ready || waitingContent}
           className="w-full py-5 rounded-2xl font-black text-white text-lg flex items-center justify-center gap-3"
           style={{
             background: ready
@@ -184,12 +241,17 @@ export default function PaymentSuccess() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
-          whileTap={{ scale: ready ? 0.97 : 1 }}
+          whileTap={{ scale: ready && !waitingContent ? 0.97 : 1 }}
         >
           {!ready ? (
             <>
               <Loader2 className="w-6 h-6 animate-spin" />
               Activation en cours…
+            </>
+          ) : waitingContent ? (
+            <>
+              <Loader2 className="w-6 h-6 animate-spin" />
+              Préparation de ton analyse complète…
             </>
           ) : (
             <>
