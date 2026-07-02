@@ -27,6 +27,34 @@ import BottomNav from '@/components/results/BottomNav';
 const arr = (v) => (Array.isArray(v) ? v : []);
 const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
 
+// Vrai si au moins une rubrique premium n'est pas encore générée
+const premiumBlocksMissing = (a) => {
+  if (!a) return true;
+  const empty = (v) => !Array.isArray(v) || v.length === 0;
+  return empty(a.routine_matin) || empty(a.routine_soir) || empty(a.actifs)
+    || empty(a.aliments) || empty(a.habitudes)
+    || !a.tracking || typeof a.tracking !== 'object' || Object.keys(a.tracking).length === 0;
+};
+
+// Affiché à la place d'une rubrique dont le contenu est en cours de génération
+// (juste après le paiement). Elle se remplit automatiquement en quelques instants.
+function SectionPending() {
+  return (
+    <div className="px-6 py-10 text-center">
+      <div
+        className="w-8 h-8 mx-auto mb-4 rounded-full animate-spin"
+        style={{ border: '3px solid rgba(0,168,120,0.15)', borderTopColor: '#00A878' }}
+      />
+      <p className="text-sm font-bold text-foreground mb-1">
+        ✨ Finalisation de ton programme personnalisé
+      </p>
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        Cette rubrique s'affichera automatiquement dans quelques instants.
+      </p>
+    </div>
+  );
+}
+
 // ── DONNÉES DE DÉMO pour l'aperçu flouté (non-premium) ─────────────────────
 // Les analyses gratuites ne génèrent plus les rubriques payantes (économie de
 // crédits). Ces données statiques remplissent la zone floutée du paywall pour
@@ -370,28 +398,39 @@ export default function Results() {
 
         setAnalysis(fetchedAnalysis);
 
-        // ── AUTO-REPAIR : déclencher repairAnalysisC si actifs/aliments vides ──
-        // v2 : UNIQUEMENT pour les utilisateurs payants. Les analyses gratuites ont
-        // volontairement des rubriques vides (non générées = crédits économisés) ;
-        // le contenu complet est généré ici-même au moment où l'utilisateur devient premium.
+        // ── AUTO-REPAIR : compléter les rubriques manquantes (payants uniquement) ──
+        // Les analyses gratuites ont volontairement des rubriques vides (crédits
+        // économisés). Au paiement, PaymentSuccess a déjà lancé la génération et posé
+        // un flag ; ici on ne relance repairAnalysisC QUE si ce flag est absent/périmé
+        // (évite une double génération = double coût), puis on surveille la base et
+        // on remplit la page automatiquement dès que le contenu arrive.
         const userHasPaid = justUnlockedParam || serverIsPremium || isForeverUnlocked();
         const needsRepair = (
           userHasPaid &&
           fetchedAnalysis.analysis_complete === true &&
-          (!Array.isArray(fetchedAnalysis.actifs) || fetchedAnalysis.actifs.length === 0)
+          premiumBlocksMissing(fetchedAnalysis)
         );
         if (needsRepair) {
-          base44.functions.invoke('repairAnalysisC', { analysis_id: id })
+          let alreadyFired = false;
+          try {
+            const t = parseInt(localStorage.getItem('dermaci_repair_fired_' + id) || '0', 10) || 0;
+            alreadyFired = t > 0 && (Date.now() - t) < 180000; // < 3 min
+          } catch {}
+          const fire = alreadyFired
+            ? Promise.resolve()
+            : base44.functions.invoke('repairAnalysisC', { analysis_id: id })
+                .then(() => { try { localStorage.setItem('dermaci_repair_fired_' + id, String(Date.now())); } catch {} });
+          fire
             .then(() => {
               const start = Date.now();
               const poll = async () => {
-                if (Date.now() - start > 120000) return;
+                if (Date.now() - start > 120000 || !mountedRef.current) return;
                 await new Promise(r => setTimeout(r, 4000));
                 try {
                   const res = await base44.functions.invoke('getAnalysis', { analysis_id: id });
                   const updated = res?.data?.data || res?.data || null;
-                  if (updated && Array.isArray(updated.actifs) && updated.actifs.length > 0) {
-                    setAnalysis(updated);
+                  if (updated && !premiumBlocksMissing(updated)) {
+                    if (mountedRef.current) setAnalysis(updated);
                     return;
                   }
                 } catch {}
@@ -552,28 +591,34 @@ export default function Results() {
           </CollapsibleSection>
 
           <CollapsibleSection label="Routine matin & soir" icon={<Sun className="w-4 h-4" />} color="#F5A623">
-            <RoutineSection routineMatin={routine_matin} routineSoir={routine_soir} photoUrl={photo_url} />
+            {(routine_matin.length || routine_soir.length) ? (
+              <RoutineSection routineMatin={routine_matin} routineSoir={routine_soir} photoUrl={photo_url} />
+            ) : <SectionPending />}
           </CollapsibleSection>
 
           <CollapsibleSection label="Actifs scientifiques" icon={<FlaskConical className="w-4 h-4" />} color="#00C896">
-            <ActifsSection actifs={actifs} />
+            {actifs.length ? <ActifsSection actifs={actifs} /> : <SectionPending />}
           </CollapsibleSection>
 
           <CollapsibleSection label="Pharmacies proches" icon={<MapPin className="w-4 h-4" />} color="#E74C3C">
-            <PharmacySection actifs={actifs} />
-            <PharmacyDisclaimer />
+            {actifs.length ? (
+              <>
+                <PharmacySection actifs={actifs} />
+                <PharmacyDisclaimer />
+              </>
+            ) : <SectionPending />}
           </CollapsibleSection>
 
           <CollapsibleSection label="Nutrition ivoirienne" icon={<Apple className="w-4 h-4" />} color="#F5A623">
-            <NutritionSection aliments={aliments} />
+            {aliments.length ? <NutritionSection aliments={aliments} /> : <SectionPending />}
           </CollapsibleSection>
 
           <CollapsibleSection label="Habitudes de vie" icon={<Heart className="w-4 h-4" />} color="#EC4899">
-            <HabitudesSection habitudes={habitudes} />
+            {habitudes.length ? <HabitudesSection habitudes={habitudes} /> : <SectionPending />}
           </CollapsibleSection>
 
           <CollapsibleSection label="Évolution & Suivi" icon={<LineChart className="w-4 h-4" />} color="#06B6D4">
-            <EvolutionSection tracking={tracking} />
+            {Object.keys(tracking).length ? <EvolutionSection tracking={tracking} /> : <SectionPending />}
           </CollapsibleSection>
 
           <DisclaimerSection />
