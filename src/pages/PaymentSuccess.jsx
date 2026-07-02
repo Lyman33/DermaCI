@@ -11,12 +11,8 @@ export default function PaymentSuccess() {
   const [searchParams] = useSearchParams();
   const [ready, setReady] = useState(false);
   const [analysisId, setAnalysisId] = useState(null);
-  // ── Perfection de timing : le contenu complet (routines, actifs, aliments…)
-  // est généré PENDANT que l'utilisateur lit cette page. On ne l'envoie vers
-  // ses résultats que lorsque tout est écrit en base → jamais de section vide.
-  const [waitingContent, setWaitingContent] = useState(false);
-  const contentReadyRef = useRef(false);
-  const wantsResultsRef = useRef(false);
+  // La génération du contenu complet démarre dès l'arrivée sur cette page
+  // (voir PRÉ-GÉNÉRATION) ; l'utilisateur, lui, ne l'attend jamais.
   const analysisIdRef = useRef(null);
 
   // Dès l'arrivée sur la page → activer premium immédiatement, sans condition
@@ -68,43 +64,18 @@ export default function PaymentSuccess() {
 
         // ── PRÉ-GÉNÉRATION (démarre PENDANT la lecture de cette page) ──
         // L'analyse gratuite n'a pas les rubriques payantes : on demande à
-        // repairAnalysisC de les générer MAINTENANT, puis on surveille la base.
-        // Quand l'utilisateur cliquera, tout sera (presque toujours) déjà prêt.
+        // repairAnalysisC de les générer MAINTENANT en arrière-plan. Le flag
+        // évite que Results.jsx relance la même génération (double coût).
         const finalAid = serverAnalysisId || aid || null;
         analysisIdRef.current = finalAid;
         if (finalAid) {
-          try { base44.functions.invoke('repairAnalysisC', { analysis_id: finalAid }).catch(() => {}); } catch {}
-          const pollStart = Date.now();
-          const pollContent = async () => {
-            if (contentReadyRef.current) return;
-            // Cap de sécurité 90s : au-delà on laisse partir (Results a son propre filet)
-            if (Date.now() - pollStart > 90000) {
-              contentReadyRef.current = true;
-              if (wantsResultsRef.current) goToResults();
-              return;
-            }
-            try {
-              const res = await base44.functions.invoke('getAnalysis', { analysis_id: finalAid });
-              const a = res?.data?.data || res?.data || null;
-              if (a && Array.isArray(a.actifs) && a.actifs.length > 0
-                    && Array.isArray(a.routine_matin) && a.routine_matin.length > 0) {
-                contentReadyRef.current = true;
-                // Si l'utilisateur a déjà cliqué et attend → départ immédiat
-                if (wantsResultsRef.current) goToResults();
-                return;
-              }
-            } catch {}
-            setTimeout(pollContent, 3000);
-          };
-          setTimeout(pollContent, 2500);
-        } else {
-          // Pas d'analyse à compléter → rien à attendre
-          contentReadyRef.current = true;
+          try {
+            localStorage.setItem('dermaci_repair_fired_' + finalAid, String(Date.now()));
+            base44.functions.invoke('repairAnalysisC', { analysis_id: finalAid }).catch(() => {});
+          } catch {}
         }
       } catch (err) {
         console.error('[PaymentSuccess] activation:', err.message);
-        // En cas d'échec d'activation, ne jamais bloquer le bouton
-        contentReadyRef.current = true;
       }
 
       setReady(true);
@@ -152,15 +123,10 @@ export default function PaymentSuccess() {
       return;
     }
 
-    // ── Perfection de timing : on ne part vers les résultats QUE si le contenu
-    // complet est écrit en base. Sinon, le bouton passe en mode préparation et
-    // le départ se fait automatiquement dès que c'est prêt (voir pollContent).
-    if (contentReadyRef.current) {
-      goToResults();
-    } else {
-      wantsResultsRef.current = true;
-      setWaitingContent(true);
-    }
+    // ── Départ IMMÉDIAT vers les résultats (aucune attente pour l'utilisateur).
+    // Les rubriques en cours de génération s'afficheront et se rempliront
+    // automatiquement sur la page résultats.
+    goToResults();
   };
 
   return (
@@ -229,7 +195,7 @@ export default function PaymentSuccess() {
         {/* BOUTON — redirige directement */}
         <motion.button
           onClick={handleViewAnalysis}
-          disabled={!ready || waitingContent}
+          disabled={!ready}
           className="w-full py-5 rounded-2xl font-black text-white text-lg flex items-center justify-center gap-3"
           style={{
             background: ready
@@ -241,17 +207,12 @@ export default function PaymentSuccess() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
-          whileTap={{ scale: ready && !waitingContent ? 0.97 : 1 }}
+          whileTap={{ scale: ready ? 0.97 : 1 }}
         >
           {!ready ? (
             <>
               <Loader2 className="w-6 h-6 animate-spin" />
               Activation en cours…
-            </>
-          ) : waitingContent ? (
-            <>
-              <Loader2 className="w-6 h-6 animate-spin" />
-              Préparation de ton analyse complète…
             </>
           ) : (
             <>
