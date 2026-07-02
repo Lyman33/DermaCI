@@ -82,7 +82,10 @@ export default function PremiumSuccess() {
       // rien si l'analyse est déjà complète — coût zéro dans ce cas).
       try {
         const lastId = localStorage.getItem('dermaci_last_analysis_id');
-        if (lastId) base44.functions.invoke('repairAnalysisC', { analysis_id: lastId }).catch(() => {});
+        if (lastId) {
+          localStorage.setItem('dermaci_repair_fired_' + lastId, String(Date.now()));
+          base44.functions.invoke('repairAnalysisC', { analysis_id: lastId }).catch(() => {});
+        }
       } catch {}
 
       // Aller à l'accueil avec l'animation premium
