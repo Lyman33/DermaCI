@@ -619,7 +619,7 @@ export default function Analysis() {
     } catch (e) { console.warn('[paywall] initPayment (enregistrement) indispo:', e?.message); }
 
     // FLUX 1 : LIEN B dedie -> redirect_url = premium-success (-> accueil anime + premium a vie)
-    const LINK_B = 'https://geniuspay.ci/product/dermaci-BXJx6A';
+    const LINK_B = 'https://geniuspay.ci/product/dermaci-BI38zG';
     // Lien NU : les Link Pay GeniusPay cassent avec ?email&redirect_url. Le redirect est configure cote produit.
     window.location.href = LINK_B;
   };
