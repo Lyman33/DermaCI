@@ -602,25 +602,32 @@ export default function Analysis() {
       return;
     }
 
-    // On enregistre le paiement (email + device_id) cote serveur, SANS suivre le
-    // payment_url renvoye (qui pointe vers payment-success / FLUX 2).
+    // On cree le paiement cote serveur : l'API GeniusPay genere un lien de
+    // checkout FRAIS (fini les liens statiques qui meurent). La reference voyage
+    // via localStorage + success_url pour la verification exacte au retour.
+    const LINK_B = 'https://geniuspay.ci/product/dermaci-evWAOJ'; // secours si API indisponible
     try {
-      if (email) {
-        const res = await base44.functions.invoke('initPayment', { email, device_id: getDeviceId() });
-        const data = res?.data || res || {};
-        if (data?.already_premium) {
-          markDevicePremium();
-          setPaywallLoading(false);
-          setShowPaywall(false);
-          if (formData) { handleSubmit(formData); }
-          return;
-        }
+      const res = await base44.functions.invoke('initPayment', {
+        email: email || undefined,
+        device_id: getDeviceId(),
+        flow: 'analysis',
+      });
+      const data = res?.data || res || {};
+      if (data?.already_premium) {
+        markDevicePremium();
+        setPaywallLoading(false);
+        setShowPaywall(false);
+        if (formData) { handleSubmit(formData); }
+        return;
       }
-    } catch (e) { console.warn('[paywall] initPayment (enregistrement) indispo:', e?.message); }
+      if (data?.reference) { try { localStorage.setItem('dermaci_gp_ref', data.reference); } catch {} }
+      if (data?.payment_url && typeof data.payment_url === 'string') {
+        window.location.href = data.payment_url;
+        return;
+      }
+    } catch (e) { console.warn('[paywall] initPayment indispo, lien direct:', e?.message); }
 
-    // FLUX 1 : LIEN B dedie -> redirect_url = premium-success (-> accueil anime + premium a vie)
-    const LINK_B = 'https://geniuspay.ci/product/dermaci-evWAOJ';
-    // Lien NU : les Link Pay GeniusPay cassent avec ?email&redirect_url. Le redirect est configure cote produit.
+    // FLUX 1 (secours) : LIEN B dedie -> redirect_url = premium-success
     window.location.href = LINK_B;
   };
 
