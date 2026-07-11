@@ -39,11 +39,17 @@ export default function PaymentSuccess() {
       localStorage.removeItem('dermaci_pending_payment');
       // ⚠️ NE PAS faire localStorage.removeItem('dermaci_analyses') ici
 
-      // Activer le premium ET récupérer l'analysis_id depuis le serveur
+      // Activer le premium ET récupérer l'analysis_id depuis le serveur.
+      // v4 : on transmet la REFERENCE du paiement (URL ?ref= ou localStorage)
+      // pour que le serveur verifie CE paiement precis aupres de GeniusPay.
+      let gpRef = null;
+      try { gpRef = searchParams.get('ref') || localStorage.getItem('dermaci_gp_ref') || null; } catch {}
       try {
         const result = await base44.functions.invoke('activatePremiumAndGetAnalysis', {
           analysis_id: aid || null,
+          ...(gpRef ? { reference: gpRef } : {}),
         });
+        try { localStorage.removeItem('dermaci_gp_ref'); } catch {}
 
         // Récupérer l'analysis_id retourné par le serveur
         const serverAnalysisId = result?.data?.analysis_id || result?.data?.id || result?.analysis_id || aid;
