@@ -85,13 +85,19 @@ export default function Forfaits() {
     } catch {}
     if (!email) { try { email = (localStorage.getItem('dermaci_device_email') || '').toLowerCase().trim(); } catch {} }
 
-    // Enregistrer l'intention de paiement (email + device) côté serveur — sans bloquer
+    // initPayment cree un checkout GeniusPay FRAIS via l'API pour CE pass
+    // (montant exact + reference de verification). Secours : lien statique.
     try {
-      await base44.functions.invoke('initPayment', { email, device_id: getDeviceId(), pass_type: plan.id });
-    } catch (e) { /* on continue vers le lien quoi qu'il arrive */ }
+      const res = await base44.functions.invoke('initPayment', { email: email || undefined, device_id: getDeviceId(), pass_type: plan.id, flow: 'pass' });
+      const data = res?.data || res || {};
+      if (data?.reference) { try { localStorage.setItem('dermaci_gp_ref', data.reference); } catch {} }
+      if (data?.payment_url && typeof data.payment_url === 'string') {
+        window.location.href = data.payment_url;
+        return;
+      }
+    } catch (e) { /* on continue vers le lien statique quoi qu'il arrive */ }
 
-    // Rediriger vers le lien GeniusPay du forfait (redirect_url déjà configuré côté produit)
-    // Lien NU : les Link Pay GeniusPay cassent avec ?email&redirect_url. Le redirect est configure cote produit.
+    // Secours : lien GeniusPay statique du forfait (redirect_url configuré côté produit)
     window.location.href = plan.link;
   };
 
