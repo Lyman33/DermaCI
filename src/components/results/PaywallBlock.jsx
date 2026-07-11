@@ -58,24 +58,28 @@ export default function PaywallBlock({ onUnlock, paymentPending, user }) {
 
     const email = getEmail();
 
-    // On passe par initPayment : il enregistre le paiement (email + reference)
-    // et renvoie un lien GeniusPay personnalise -> permet de debloquer le bon compte.
+    // initPayment cree un checkout GeniusPay FRAIS via l'API (fini les liens morts)
+    // et renvoie une reference pour la verification exacte au retour.
+    // Fonctionne AVEC ou SANS email (les anonymes sont relies par device + reference).
     try {
-      if (email) {
-        const res = await base44.functions.invoke('initPayment', { email, device_id: getDeviceId() });
-        const data = res?.data || res || {};
-        if (data?.already_premium) {
-          // Deja premium : on debloque directement
-          onUnlock?.();
-          setLoading(false);
-          return;
-        }
-        const url = data?.payment_url;
-        if (url && typeof url === 'string') {
-          onUnlock?.();
-          window.location.href = url;
-          return;
-        }
+      const res = await base44.functions.invoke('initPayment', {
+        email: email || undefined,
+        device_id: getDeviceId(),
+        flow: 'results',
+      });
+      const data = res?.data || res || {};
+      if (data?.already_premium) {
+        // Deja premium : on debloque directement
+        onUnlock?.();
+        setLoading(false);
+        return;
+      }
+      if (data?.reference) { try { localStorage.setItem('dermaci_gp_ref', data.reference); } catch {} }
+      const url = data?.payment_url;
+      if (url && typeof url === 'string') {
+        onUnlock?.();
+        window.location.href = url;
+        return;
       }
     } catch (e) {
       console.warn('[Paywall] initPayment indisponible, lien direct:', e?.message);
