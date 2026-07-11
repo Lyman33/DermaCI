@@ -64,14 +64,18 @@ export default function PremiumSuccess() {
         localStorage.removeItem('dermaci_payment_origin');
       } catch {}
 
-      // Activer côté serveur
+      // Activer côté serveur — v4 : on transmet la REFERENCE du paiement
+      // (URL ?ref= ou localStorage) pour la verification exacte GeniusPay.
+      let gpRef = null;
+      try { gpRef = searchParams.get('ref') || localStorage.getItem('dermaci_gp_ref') || null; } catch {}
       try {
         if (isPass) {
-          await base44.functions.invoke('activatePass', { pass_type: passParam, device_id: getDeviceId(), user_email: email });
+          await base44.functions.invoke('activatePass', { pass_type: passParam, device_id: getDeviceId(), user_email: email, ...(gpRef ? { reference: gpRef } : {}) });
         } else {
-          // Pass Découverte (2000 FCFA) : ancienne activation
-          await base44.functions.invoke('activatePremiumAndGetAnalysis', { analysis_id: null });
+          // Pass Découverte (2000 FCFA) : activation avec verification par reference
+          await base44.functions.invoke('activatePremiumAndGetAnalysis', { analysis_id: null, ...(email ? { email } : {}), ...(gpRef ? { reference: gpRef } : {}) });
         }
+        try { localStorage.removeItem('dermaci_gp_ref'); } catch {}
       } catch (err) {
         console.error('[PremiumSuccess] activation:', err?.message);
       }
